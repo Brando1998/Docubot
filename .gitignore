@@ -75,6 +75,7 @@ ENV/
 env/
 .rasa/cache
 .rasa/models
+models/*.tar.gz
 
 # -------------------------
 # DOCKER / CONTAINERS
