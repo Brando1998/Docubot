@@ -8,6 +8,10 @@ intents:
   - solicitar_manifiesto
   - informar_datos
   - nlu_fallback
+  - expedir_manifiesto
+  - registrar_conductor
+  - verificar_conductor
+  - generar_pago
 
 entities:
   - flete
@@ -177,3 +181,7 @@ actions:
   - action_default_fallback
   - action_submit_manifiesto
   - validate_manifiesto_form
+  - action_expedir_manifiesto
+  - action_registrar_conductor
+  - action_verificar_conductor
+  - action_generar_pago

@@ -90,16 +90,57 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 			whatsappGroup.POST("/send", controllers.SendWhatsAppMessage)           // Enviar mensaje
 			whatsappGroup.POST("/restart", controllers.RestartWhatsAppSession)     // Reiniciar sesión completa
 			whatsappGroup.POST("/clear-session", controllers.ClearWhatsAppSession) // Limpiar credenciales
+
+			// 🆕 Endpoints para gestión de múltiples sesiones
+			whatsappGroup.POST("/sessions", controllers.CreateWhatsAppSession) // Crear nueva sesión
+			whatsappGroup.GET("/sessions", controllers.ListWhatsAppSessions)   // Listar todas las sesiones
+
+			// 🆕 Endpoints para gestión de chats
+			whatsappGroup.GET("/chats", controllers.GetChatList)                      // Listar chats
+			whatsappGroup.GET("/chats/:chatId/messages", controllers.GetChatMessages) // Obtener mensajes de un chat
+			whatsappGroup.POST("/chats/:chatId/send", controllers.SendChatMessage)    // Enviar mensaje a un chat
 		}
 
 		// --------------------------
-		// Conversaciones (ya implementado)
+		// Gestión de Documentos
 		// --------------------------
-		// convGroup := api.Group("/conversations")
-		// {
-		// 	convGroup.GET("/history/:client_id", controllers.GetConversationHistory)
-		// 	convGroup.GET("/recent", controllers.GetRecentConversations)
-		// }
+		documentGroup := api.Group("/documents")
+		{
+			documentGroup.POST("", controllers.SaveDocument) // Guardar documento generado
+		}
+
+		// --------------------------
+		// Gestión de Chats Avanzada
+		// --------------------------
+		chatGroup := api.Group("/chats")
+		{
+			chatGroup.POST("/mode", controllers.UpdateChatMode) // Actualizar modo bot/usuario
+			chatGroup.POST("/archive", controllers.ArchiveChat) // Archivar chat
+		}
+
+		// --------------------------
+		// Clientes con Documentos
+		// --------------------------
+		clientGroup := api.Group("/clients")
+		{
+			clientGroup.GET("/:clientId/documents", controllers.GetClientDocuments) // Obtener documentos de cliente
+		}
+
+		// --------------------------
+		// Exportación de Conversaciones
+		// --------------------------
+		conversationGroup := api.Group("/conversations")
+		{
+			conversationGroup.GET("/:clientId/export", controllers.ExportConversation) // Exportar conversación
+		}
+
+		// --------------------------
+		// Dashboard y Estadísticas
+		// --------------------------
+		dashboardGroup := api.Group("/dashboard")
+		{
+			dashboardGroup.GET("/stats", controllers.GetDashboardStats) // Estadísticas del dashboard
+		}
 	}
 
 	// =============================================

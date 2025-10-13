@@ -1,0 +1,70 @@
+[
+  {
+    "name": "fecha",
+    "pattern": "(mañana|pasado|hoy)"
+  },
+  {
+    "name": "fecha",
+    "pattern": "\\d{1,2}/\\d{1,2}"
+  },
+  {
+    "name": "fecha",
+    "pattern": "\\d{1,2}:\\d{2}"
+  },
+  {
+    "name": "fecha",
+    "pattern": "día"
+  },
+  {
+    "name": "fecha",
+    "pattern": "fecha"
+  },
+  {
+    "name": "fecha",
+    "pattern": "hora"
+  },
+  {
+    "name": "flete",
+    "pattern": "costo del transporte"
+  },
+  {
+    "name": "flete",
+    "pattern": "flete"
+  },
+  {
+    "name": "flete",
+    "pattern": "precio"
+  },
+  {
+    "name": "flete",
+    "pattern": "valor del flete"
+  },
+  {
+    "name": "peso",
+    "pattern": "kg"
+  },
+  {
+    "name": "peso",
+    "pattern": "kilogramos"
+  },
+  {
+    "name": "peso",
+    "pattern": "kilos"
+  },
+  {
+    "name": "peso",
+    "pattern": "peso"
+  },
+  {
+    "name": "peso",
+    "pattern": "peso total"
+  },
+  {
+    "name": "tarjeta",
+    "pattern": "(\\btarjeta\\b|\\btarjeta\\ de\\ propiedad\\b|\\btarjeta\\ vehicular\\b|\\bdocumento\\ del\\ vehículo\\b)"
+  },
+  {
+    "name": "licencia",
+    "pattern": "(\\blicencia\\b|\\blicencia\\ de\\ conducción\\b|\\bpase\\b|\\bdocumento\\ de\\ conducción\\b)"
+  }
+]

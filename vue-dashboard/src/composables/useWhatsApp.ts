@@ -12,6 +12,13 @@ interface WhatsAppStatus {
   phone_number?: string
   user_name?: string
   last_connected?: string
+  session_info?: {
+    session_id?: string
+    number?: string
+    name?: string
+    avatar?: string
+    last_seen?: string
+  }
 }
 
 export function useWhatsApp() {
@@ -27,11 +34,24 @@ export function useWhatsApp() {
     try {
       isLoading.value = true
       clearError()
-      
+
       const response = await api.get('/api/v1/whatsapp/qr')
-      whatsappData.value = response.data
-      
-      return response.data
+      const data = response.data
+
+      // Mapear campos de la API a la estructura del frontend
+      whatsappData.value = {
+        status: data.status,
+        connected: data.connected,
+        qr_code: data.qr_code,
+        qr_image: data.qr_image,
+        message: data.message,
+        phone_number: data.session_info?.number || data.bot_number,
+        user_name: data.session_info?.name,
+        last_connected: data.session_info?.last_seen,
+        session_info: data.session_info
+      }
+
+      return whatsappData.value
     } catch (err: any) {
       error.value = err.response?.data?.error || err.message || 'Error obteniendo estado'
       console.error('Error fetching WhatsApp status:', err)
@@ -162,10 +182,23 @@ export function useWhatsApp() {
     try {
       isLoading.value = true
       clearError()
-      
+
       const response = await api.get('/api/v1/whatsapp/status')
-      
-      return response.data
+      const data = response.data
+
+      // Mapear campos para consistencia
+      const mappedData = {
+        status: data.status,
+        connected: data.connected,
+        message: data.message,
+        phone_number: data.bot_number || data.session_info?.number,
+        user_name: data.session_info?.name,
+        last_connected: data.last_seen || data.session_info?.last_seen,
+        session_info: data.session_info,
+        ...data // Mantener otros campos de la API
+      }
+
+      return mappedData
     } catch (err: any) {
       error.value = err.response?.data?.error || err.message || 'Error obteniendo estado detallado'
       console.error('Error getting detailed status:', err)
@@ -195,12 +228,66 @@ export function useWhatsApp() {
     }
   }
 
+  // 🆕 Métodos para gestión de chats
+  const getChats = async () => {
+    try {
+      isLoading.value = true
+      clearError()
+
+      const response = await api.get('/api/v1/whatsapp/chats')
+      return response.data
+    } catch (err: any) {
+      error.value = err.response?.data?.error || err.message || 'Error obteniendo chats'
+      console.error('Error getting chats:', err)
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  const getChatMessages = async (chatId: string, limit: number = 50) => {
+    try {
+      isLoading.value = true
+      clearError()
+
+      const response = await api.get(`/api/v1/whatsapp/chats/${chatId}/messages`, {
+        params: { limit }
+      })
+      return response.data
+    } catch (err: any) {
+      error.value = err.response?.data?.error || err.message || 'Error obteniendo mensajes'
+      console.error('Error getting chat messages:', err)
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  const sendChatMessage = async (chatId: string, message: string) => {
+    try {
+      isLoading.value = true
+      clearError()
+
+      const response = await api.post(`/api/v1/whatsapp/chats/${chatId}/send`, {
+        message
+      })
+      return response.data
+    } catch (err: any) {
+      error.value = err.response?.data?.error || err.message || 'Error enviando mensaje'
+      console.error('Error sending chat message:', err)
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+
   return {
     // Estado
     whatsappData,
     isLoading,
     error,
-    
+
     // Métodos existentes
     fetchWhatsAppStatus,
     generateQR,
@@ -210,6 +297,11 @@ export function useWhatsApp() {
     clearError,
     restartSession,
     clearSession,
-    getDetailedStatus
+    getDetailedStatus,
+
+    // 🆕 Métodos para gestión de chats
+    getChats,
+    getChatMessages,
+    sendChatMessage
   }
 }

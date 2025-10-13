@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -10,7 +11,7 @@ import (
 
 type WebSocketHub struct {
 	mu      sync.RWMutex
-	bots    map[string]*websocket.Conn // Conexiones de bots (key: bot phone number)
+	bots    map[string]*websocket.Conn // Conexiones de bots (key: sessionId:botPhone o botPhone)
 	clients map[string]*websocket.Conn // Conexiones de clientes (key: client phone number)
 }
 
@@ -66,6 +67,24 @@ func (h *WebSocketHub) ListBots() []string {
 	var bots []string
 	for bot := range h.bots {
 		bots = append(bots, bot)
+	}
+	return bots
+}
+
+// GetBotsBySession obtiene todos los bots de una sesión específica
+func (h *WebSocketHub) GetBotsBySession(sessionId string) []string {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	var bots []string
+	prefix := sessionId + ":"
+	for botKey := range h.bots {
+		if strings.HasPrefix(botKey, prefix) {
+			// Extraer el número de teléfono del bot
+			parts := strings.Split(botKey, ":")
+			if len(parts) >= 2 {
+				bots = append(bots, parts[1])
+			}
+		}
 	}
 	return bots
 }

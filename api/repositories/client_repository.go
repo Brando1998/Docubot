@@ -1,8 +1,10 @@
 package repositories
 
 import (
+	"context"
 	"errors"
 	"log"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -14,6 +16,10 @@ type ClientRepository interface {
 	GetClientByID(id uint) (*models.Client, error)
 	GetClientByPhone(phone string) (*models.Client, error)
 	GetOrCreateClient(phone, name, email string) (*models.Client, error)
+
+	// Nuevos métodos para estadísticas
+	GetTotalClients(ctx context.Context) (int64, error)
+	GetClientsCreatedBetween(ctx context.Context, startDate, endDate time.Time) ([]models.Client, error)
 }
 
 type userRepository struct {
@@ -71,4 +77,17 @@ func (r *userRepository) GetOrCreateClient(phone, name, email string) (*models.C
 
 	log.Printf("Error buscando cliente: %v", err)
 	return nil, err
+}
+
+// Implementaciones de los nuevos métodos para estadísticas
+func (r *userRepository) GetTotalClients(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.db.Model(&models.Client{}).Count(&count).Error
+	return count, err
+}
+
+func (r *userRepository) GetClientsCreatedBetween(ctx context.Context, startDate, endDate time.Time) ([]models.Client, error) {
+	var clients []models.Client
+	err := r.db.Where("created_at BETWEEN ? AND ?", startDate, endDate).Find(&clients).Error
+	return clients, err
 }

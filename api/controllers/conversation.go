@@ -27,6 +27,7 @@ type IncomingMessageRequest struct {
 	Phone     string `json:"phone"`
 	Message   string `json:"message"`
 	BotNumber string `json:"botNumber"`
+	SessionID string `json:"sessionId,omitempty"` // ID de la sesión para múltiples bots
 }
 
 type RasaResponseItem struct {
@@ -49,18 +50,25 @@ func SetClientRepo(repo repositories.ClientRepository) {
 // HandleWebSocket maneja conexiones WebSocket entrantes
 func HandleWebSocket(c *gin.Context, hub *WebSocketHub, upgrader websocket.Upgrader) {
 
-	//Obtener el numero
+	//Obtener el numero y sessionId
 	log.Println("Nueva conexión WebSocket intentada")
-	botPhone := c.Query("phone") // Este es el número DEL BOT
+	botPhone := c.Query("phone")      // Este es el número DEL BOT
+	sessionId := c.Query("sessionId") // ID de la sesión (opcional)
 	if botPhone == "" {
 		log.Println("Bot phone number missing in WebSocket connection")
 		c.AbortWithStatus(http.StatusBadRequest)
 		return
 	}
 
+	// Usar sessionId como identificador único si está presente
+	botKey := botPhone
+	if sessionId != "" {
+		botKey = fmt.Sprintf("%s:%s", sessionId, botPhone)
+	}
+
 	// Verificar si el bot ya está registrado
-	if _, err := hub.GetBotConnection(botPhone); err == nil {
-		log.Printf("Bot %s ya está registrado", botPhone)
+	if _, err := hub.GetBotConnection(botKey); err == nil {
+		log.Printf("Bot %s ya está registrado", botKey)
 		c.AbortWithStatus(http.StatusConflict)
 		return
 	}
@@ -71,16 +79,16 @@ func HandleWebSocket(c *gin.Context, hub *WebSocketHub, upgrader websocket.Upgra
 		return
 	}
 
-	// Registrar la conexión del BOT
-	log.Printf("Registrando bot: %s", botPhone)
-	hub.RegisterBot(botPhone, conn)
+	// Registrar la conexión del BOT con la clave única
+	log.Printf("Registrando bot: %s (session: %s)", botPhone, sessionId)
+	hub.RegisterBot(botKey, conn)
 
 	// Manejar mensajes entrantes
 	go func() {
 		defer func() {
-			hub.UnregisterBot(botPhone)
+			hub.UnregisterBot(botKey)
 			conn.Close()
-			log.Printf("Conexión cerrada para bot: %s", botPhone)
+			log.Printf("Conexión cerrada para bot: %s (session: %s)", botPhone, sessionId)
 		}()
 
 		for {
@@ -103,7 +111,13 @@ func HandleWebSocket(c *gin.Context, hub *WebSocketHub, upgrader websocket.Upgra
 // processIncomingMessage procesa los mensajes entrantes
 func processIncomingMessage(msg IncomingMessageRequest, hub *WebSocketHub) error {
 	// Asegurar formato consistente del botNumber
-	log.Printf("Procesando mensaje de %s a bot %s: %s", msg.Phone, msg.BotNumber, msg.Message)
+	sessionId := msg.SessionID
+	if sessionId == "" {
+		sessionId = "default"
+	}
+	botKey := fmt.Sprintf("%s:%s", sessionId, msg.BotNumber)
+
+	log.Printf("Procesando mensaje de %s a bot %s (session: %s): %s", msg.Phone, msg.BotNumber, sessionId, msg.Message)
 
 	// 1. Procesar cliente (guardar en DB)
 	cleanPhone := strings.Split(msg.Phone, "@")[0]
@@ -133,7 +147,9 @@ func processIncomingMessage(msg IncomingMessageRequest, hub *WebSocketHub) error
 	}
 
 	// 4. Procesar con Rasa
-	rasaResponses, err := sendToRasa(msg.Phone, msg.Message)
+	// Usar sender con sessionId para aislamiento de contexto
+	senderWithSession := fmt.Sprintf("%s:%s", sessionId, msg.Phone)
+	rasaResponses, err := sendToRasa(senderWithSession, msg.Message)
 	if err != nil {
 		return fmt.Errorf("rasa processing failed: %w", err)
 	}
@@ -157,13 +173,14 @@ func processIncomingMessage(msg IncomingMessageRequest, hub *WebSocketHub) error
 			log.Printf("Failed to save bot message: %v", err)
 		}
 
-		// Enviar respuesta al cliente
-		log.Printf("Enviando respuesta a bot %s para cliente %s: %s",
-			msg.BotNumber, msg.Phone, response.Text)
+		// Enviar respuesta al cliente usando la clave del bot
+		log.Printf("Enviando respuesta a bot %s (session: %s) para cliente %s: %s",
+			msg.BotNumber, sessionId, msg.Phone, response.Text)
 
-		if err := hub.SendToBot(msg.BotNumber, map[string]interface{}{
-			"to":      msg.Phone, // Cliente destino
-			"message": response.Text,
+		if err := hub.SendToBot(botKey, map[string]interface{}{
+			"to":        msg.Phone, // Cliente destino
+			"message":   response.Text,
+			"sessionId": sessionId, // Incluir sessionId en la respuesta
 		}); err != nil {
 			log.Printf("Failed to send message to bot: %v", err)
 		}
@@ -174,6 +191,8 @@ func processIncomingMessage(msg IncomingMessageRequest, hub *WebSocketHub) error
 
 // sendToRasa envía mensajes al servidor Rasa
 func sendToRasa(sender, message string) ([]RasaResponseItem, error) {
+	// Incluir sessionId en el sender para aislamiento de contexto
+	// El sender ahora viene en formato "sessionId:phone" desde processIncomingMessage
 	payload := map[string]interface{}{
 		"sender":  sender,
 		"message": message,

@@ -1,8 +1,10 @@
 package controllers
 
 import (
+	"context"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -96,6 +98,285 @@ func GetClientByPhone(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, user)
+}
+
+// GetDashboardStats obtiene estadísticas para el dashboard
+// @Summary Obtener estadísticas del dashboard
+// @Description Retorna métricas generales del sistema con filtros de fecha
+// @Tags dashboard
+// @Produce json
+// @Param start_date query string false "Fecha de inicio (YYYY-MM-DD)"
+// @Param end_date query string false "Fecha de fin (YYYY-MM-DD)"
+// @Param period query string false "Período: day, month, year" Enums(day,month,year)
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/dashboard/stats [get]
+func GetDashboardStats(c *gin.Context) {
+	startDateStr := c.Query("start_date")
+	endDateStr := c.Query("end_date")
+	period := c.Query("period")
+
+	// Si no se especifica período, usar "month" por defecto
+	if period == "" {
+		period = "month"
+	}
+
+	// Calcular fechas si no se proporcionan
+	startDate, endDate, err := calculateDateRange(startDateStr, endDateStr, period)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Fechas inválidas",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Obtener estadísticas
+	stats, err := calculateDashboardStats(c.Request.Context(), startDate, endDate)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Error calculando estadísticas",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"period": gin.H{
+			"start_date": startDate.Format("2006-01-02"),
+			"end_date":   endDate.Format("2006-01-02"),
+			"period":     period,
+		},
+		"stats": stats,
+	})
+}
+
+// Funciones auxiliares para estadísticas
+
+// calculateDateRange calcula el rango de fechas basado en los parámetros
+func calculateDateRange(startDateStr, endDateStr, period string) (time.Time, time.Time, error) {
+	now := time.Now()
+
+	var startDate, endDate time.Time
+
+	// Si se proporcionan fechas específicas, usarlas
+	if startDateStr != "" && endDateStr != "" {
+		var err error
+		startDate, err = time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			return time.Time{}, time.Time{}, err
+		}
+		endDate, err = time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			return time.Time{}, time.Time{}, err
+		}
+		return startDate, endDate, nil
+	}
+
+	// Calcular basado en período
+	switch period {
+	case "day":
+		startDate = now.Truncate(24 * time.Hour)
+		endDate = startDate.Add(24 * time.Hour)
+	case "month":
+		startDate = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+		endDate = startDate.AddDate(0, 1, 0)
+	case "year":
+		startDate = time.Date(now.Year(), 1, 1, 0, 0, 0, 0, now.Location())
+		endDate = startDate.AddDate(1, 0, 0)
+	default:
+		// Por defecto, último mes
+		endDate = time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, now.Location())
+		startDate = endDate.AddDate(0, -1, 0)
+	}
+
+	return startDate, endDate, nil
+}
+
+// calculateDashboardStats calcula todas las estadísticas del dashboard
+func calculateDashboardStats(ctx context.Context, startDate, endDate time.Time) (map[string]interface{}, error) {
+	stats := make(map[string]interface{})
+
+	// 1. Estadísticas de clientes
+	clientStats, err := getClientStats(ctx, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	stats["clients"] = clientStats
+
+	// 2. Estadísticas de documentos
+	documentStats, err := getDocumentStats(ctx, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	stats["documents"] = documentStats
+
+	// 3. Estadísticas de conversaciones
+	conversationStats, err := getConversationStats(ctx, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	stats["conversations"] = conversationStats
+
+	// 4. Estadísticas de chatbot
+	chatbotStats, err := getChatbotStats(ctx, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	stats["chatbot"] = chatbotStats
+
+	return stats, nil
+}
+
+// getClientStats obtiene estadísticas de clientes
+func getClientStats(ctx context.Context, startDate, endDate time.Time) (map[string]interface{}, error) {
+	// Total de clientes
+	totalClients, err := clientRepo.GetTotalClients(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Clientes nuevos en el período
+	newClients, err := clientRepo.GetClientsCreatedBetween(ctx, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	// Clientes activos (que han tenido conversaciones)
+	activeClients, err := getActiveClientsCount(ctx, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"total":       totalClients,
+		"new":         len(newClients),
+		"active":      activeClients,
+		"new_clients": newClients,
+	}, nil
+}
+
+// getDocumentStats obtiene estadísticas de documentos
+func getDocumentStats(ctx context.Context, startDate, endDate time.Time) (map[string]interface{}, error) {
+	// Total de documentos
+	totalDocuments, err := conversationRepo.GetTotalDocuments(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Documentos generados en el período
+	documentsInPeriod, err := conversationRepo.GetDocumentsCreatedBetween(ctx, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	// Documentos por tipo
+	documentsByType, err := conversationRepo.GetDocumentsByType(ctx, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	// Documentos completados vs fallidos
+	completedDocs := 0
+	failedDocs := 0
+	for _, doc := range documentsInPeriod {
+		if doc.Status == "completed" {
+			completedDocs++
+		} else if doc.Status == "failed" {
+			failedDocs++
+		}
+	}
+
+	return map[string]interface{}{
+		"total":            totalDocuments,
+		"generated":        len(documentsInPeriod),
+		"completed":        completedDocs,
+		"failed":           failedDocs,
+		"by_type":          documentsByType,
+		"recent_documents": documentsInPeriod,
+	}, nil
+}
+
+// getConversationStats obtiene estadísticas de conversaciones
+func getConversationStats(ctx context.Context, startDate, endDate time.Time) (map[string]interface{}, error) {
+	// Total de mensajes
+	totalMessages, err := conversationRepo.GetTotalMessages(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Mensajes en el período
+	messagesInPeriod, err := conversationRepo.GetMessagesBetween(ctx, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	// Conversaciones activas
+	activeConversations, err := conversationRepo.GetActiveConversations(ctx, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"total_messages":                totalMessages,
+		"messages_in_period":            len(messagesInPeriod),
+		"active_conversations":          len(activeConversations),
+		"avg_messages_per_conversation": calculateAverageMessages(activeConversations),
+	}, nil
+}
+
+// getChatbotStats obtiene estadísticas del chatbot
+func getChatbotStats(ctx context.Context, startDate, endDate time.Time) (map[string]interface{}, error) {
+	// Chats en modo bot vs manual
+	botModeChats, err := conversationRepo.GetChatsInBotMode(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	manualModeChats, err := conversationRepo.GetChatsInManualMode(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Chats archivados
+	archivedChats, err := conversationRepo.GetArchivedChatsCount(ctx, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	// Tasa de éxito de formularios (documentos completados / intentos)
+	formSuccessRate, err := calculateFormSuccessRate(ctx, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"bot_mode_chats":    botModeChats,
+		"manual_mode_chats": manualModeChats,
+		"archived_chats":    archivedChats,
+		"form_success_rate": formSuccessRate,
+	}, nil
+}
+
+// Funciones auxiliares
+func getActiveClientsCount(ctx context.Context, startDate, endDate time.Time) (int, error) {
+	// Obtener clientes únicos que han tenido mensajes en el período
+	// Implementación simplificada
+	return 0, nil // TODO: Implementar
+}
+
+func calculateAverageMessages(conversations []interface{}) float64 {
+	if len(conversations) == 0 {
+		return 0
+	}
+	// Implementación simplificada
+	return 0 // TODO: Implementar cálculo real
+}
+
+func calculateFormSuccessRate(ctx context.Context, startDate, endDate time.Time) (float64, error) {
+	// Calcular tasa de éxito basada en documentos completados vs totales
+	// Implementación simplificada
+	return 0.85, nil // TODO: Implementar cálculo real
 }
 
 // GetOrCreateClient godoc

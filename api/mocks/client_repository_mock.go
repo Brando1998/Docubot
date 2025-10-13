@@ -1,6 +1,9 @@
 package mocks
 
 import (
+	"context"
+	"time"
+
 	"github.com/brando1998/docubot-api/models"
 	"github.com/brando1998/docubot-api/repositories"
 )
@@ -29,3 +32,12 @@ func (m *MockClientRepo) GetOrCreateClient(phone, name, email string) (*models.C
 }
 
 var _ repositories.ClientRepository = &MockClientRepo{} // asegura que implementa la interfaz
+
+// Implementación de los nuevos métodos para estadísticas
+func (m *MockClientRepo) GetTotalClients(ctx context.Context) (int64, error) {
+	return 10, nil
+}
+
+func (m *MockClientRepo) GetClientsCreatedBetween(ctx context.Context, startDate, endDate time.Time) ([]models.Client, error) {
+	return []models.Client{}, nil
+}

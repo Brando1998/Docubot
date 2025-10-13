@@ -23,6 +23,7 @@
               <p class="font-medium text-green-800">WhatsApp Conectado</p>
               <p v-if="whatsappData.user_name" class="text-sm text-green-600">Usuario: {{ whatsappData.user_name }}</p>
               <p v-if="whatsappData.phone_number" class="text-sm text-green-600">Número: {{ whatsappData.phone_number }}</p>
+              <p v-if="whatsappData.last_connected" class="text-sm text-green-600">Última conexión: {{ formatDate(whatsappData.last_connected) }}</p>
             </div>
           </div>
         </div>
@@ -152,7 +153,7 @@
     </div>
 
     <!-- 🆕 Panel de Estado Detallado (opcional) -->
-    <div v-if="detailedStatus" class="bg-white rounded-lg shadow-sm border border-gray-200">
+    <div v-if="detailedStatus" class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
       <div class="p-6">
         <h3 class="text-lg font-medium text-gray-800 mb-4">Estado Detallado del Servicio</h3>
         <div class="bg-gray-50 rounded-lg p-4">
@@ -160,11 +161,231 @@
         </div>
       </div>
     </div>
+
+    <!-- 🆕 Panel de Gestión de Chats -->
+    <div v-if="whatsappData?.connected" class="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div class="p-6">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-xl font-semibold text-gray-800">Gestión de Chats</h2>
+          <button
+            @click="loadChats"
+            :disabled="isLoading"
+            class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50 flex items-center"
+          >
+            <svg v-if="isLoading" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <svg v-else class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            {{ isLoading ? 'Cargando...' : 'Actualizar Chats' }}
+          </button>
+        </div>
+
+        <!-- Barra de búsqueda y filtros -->
+        <div class="mb-4 flex flex-wrap gap-3">
+          <div class="flex-1 min-w-64">
+            <input
+              v-model="chatSearch"
+              @input="filterChats"
+              placeholder="Buscar chats..."
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <select
+            v-model="chatFilter"
+            @change="filterChats"
+            class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="all">Todos los chats</option>
+            <option value="bot">Modo Bot</option>
+            <option value="user">Modo Usuario</option>
+            <option value="unread">Con mensajes sin leer</option>
+          </select>
+        </div>
+
+        <!-- Lista de Chats -->
+        <div v-if="filteredChats.length > 0" class="space-y-3">
+          <div
+            v-for="chat in filteredChats"
+            :key="chat.id"
+            @click="selectChat(chat)"
+            :class="[
+              'p-4 rounded-lg border cursor-pointer transition-colors',
+              selectedChat?.id === chat.id
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
+            ]"
+          >
+            <div class="flex items-center justify-between">
+              <div class="flex-1">
+                <div class="flex items-center">
+                  <h4 class="font-medium text-gray-900">{{ chat.name }}</h4>
+                  <span v-if="chat.isGroup" class="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
+                    Grupo
+                  </span>
+                  <span v-if="chat.unreadCount > 0" class="ml-2 px-2 py-1 text-xs bg-red-100 text-red-800 rounded-full">
+                    {{ chat.unreadCount }} sin leer
+                  </span>
+                </div>
+                <p v-if="chat.lastMessage" class="text-sm text-gray-600 mt-1 truncate">
+                  {{ chat.lastMessage.text }}
+                </p>
+                <p class="text-xs text-gray-500 mt-1">
+                  {{ formatChatDate(chat.lastMessage?.timestamp) }}
+                </p>
+              </div>
+              <div class="flex items-center space-x-2">
+                <!-- Toggle para modo chatbot/usuario -->
+                <div class="flex items-center">
+                  <span class="text-xs text-gray-500 mr-2">Bot</span>
+                  <button
+                    @click.stop="toggleChatMode(chat)"
+                    :class="[
+                      'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+                      chat.botMode ? 'bg-green-600' : 'bg-gray-200'
+                    ]"
+                  >
+                    <span
+                      :class="[
+                        'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                        chat.botMode ? 'translate-x-6' : 'translate-x-1'
+                      ]"
+                    />
+                  </button>
+                  <span class="text-xs text-gray-500 ml-2">Usuario</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sin chats -->
+        <div v-else-if="!isLoading" class="text-center py-8">
+          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+          </svg>
+          <h3 class="mt-2 text-sm font-medium text-gray-900">No hay chats disponibles</h3>
+          <p class="mt-1 text-sm text-gray-500">Los chats aparecerán aquí cuando WhatsApp esté conectado</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 🆕 Panel de Chat Seleccionado -->
+    <div v-if="selectedChat" class="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div class="p-6">
+        <div class="flex items-center justify-between mb-6">
+          <div class="flex items-center">
+            <h3 class="text-lg font-semibold text-gray-800">{{ selectedChat.name }}</h3>
+            <span v-if="selectedChat.isGroup" class="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
+              Grupo
+            </span>
+            <span :class="[
+              'ml-2 px-2 py-1 text-xs rounded-full',
+              selectedChat.botMode ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+            ]">
+              {{ selectedChat.botMode ? 'Modo Bot' : 'Modo Usuario' }}
+            </span>
+          </div>
+          <div class="flex space-x-2">
+            <button
+              @click="exportChat"
+              :disabled="isLoading"
+              class="text-blue-500 hover:text-blue-700 disabled:opacity-50"
+              title="Exportar conversación"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+            </button>
+            <button
+              @click="archiveSelectedChat"
+              :disabled="isLoading"
+              class="text-orange-500 hover:text-orange-700 disabled:opacity-50"
+              title="Archivar chat"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+              </svg>
+            </button>
+            <button
+              @click="closeChat"
+              class="text-gray-400 hover:text-gray-600"
+              title="Cerrar chat"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Área de Mensajes -->
+        <div class="bg-gray-50 rounded-lg p-4 mb-4 h-96 overflow-y-auto" ref="messagesContainer">
+          <div v-if="chatMessages.length === 0" class="text-center text-gray-500 py-8">
+            No hay mensajes para mostrar
+          </div>
+          <div v-else class="space-y-3">
+            <div
+              v-for="message in chatMessages"
+              :key="message.id"
+              :class="[
+                'flex',
+                message.fromMe ? 'justify-end' : 'justify-start'
+              ]"
+            >
+              <div
+                :class="[
+                  'max-w-xs lg:max-w-md px-4 py-2 rounded-lg',
+                  message.fromMe
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-white text-gray-800 border border-gray-200'
+                ]"
+              >
+                <p class="text-sm">{{ message.text }}</p>
+                <p :class="[
+                  'text-xs mt-1',
+                  message.fromMe ? 'text-blue-100' : 'text-gray-500'
+                ]">
+                  {{ formatMessageDate(message.timestamp) }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Input para enviar mensajes -->
+        <div class="flex space-x-3">
+          <input
+            v-model="newMessage"
+            @keyup.enter="sendMessage"
+            placeholder="Escribe un mensaje..."
+            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            :disabled="isLoading"
+          />
+          <button
+            @click="sendMessage"
+            :disabled="!newMessage.trim() || isLoading"
+            class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+          >
+            <svg v-if="isLoading" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <svg v-else class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+            </svg>
+            {{ isLoading ? 'Enviando...' : 'Enviar' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useWhatsApp } from '@/composables/useWhatsApp'
 
 // Usar el composable con todos los métodos
@@ -179,8 +400,21 @@ const {
   restartSession,      // 🆕 Nuevo método
   clearSession,        // 🆕 Nuevo método
   getDetailedStatus,   // 🆕 Nuevo método
-  clearError
+  clearError,
+  getChats,           // 🆕 Nuevo método para chats
+  getChatMessages,    // 🆕 Nuevo método para mensajes
+  sendChatMessage     // 🆕 Nuevo método para enviar mensajes
 } = useWhatsApp()
+
+// 🆕 Estado para gestión de chats
+const chats = ref<any[]>([])
+const filteredChats = ref<any[]>([])
+const selectedChat = ref<any>(null)
+const chatMessages = ref<any[]>([])
+const newMessage = ref('')
+const messagesContainer = ref<HTMLElement>()
+const chatSearch = ref('')
+const chatFilter = ref('all')
 
 // Estado para mensajes de UI
 const message = ref('')
@@ -289,6 +523,180 @@ const handleGetDetailedStatus = async () => {
   }
 }
 
+// 🆕 Funciones para gestión de chats
+const loadChats = async () => {
+  try {
+    const data = await getChats()
+    chats.value = data.chats || []
+    // Inicializar modo bot por defecto y cargar modos desde BD
+    for (const chat of chats.value) {
+      if (chat.botMode === undefined) {
+        chat.botMode = true // Por defecto en modo bot
+      }
+      // TODO: Cargar modo desde BD cuando esté implementado
+      // try {
+      //   const modeData = await getChatModeFromDB(chat.id)
+      //   if (modeData) {
+      //     chat.botMode = modeData.bot_mode
+      //   }
+      // } catch (err) {
+      //   // Si no hay modo guardado, mantener el por defecto
+      // }
+    }
+    filterChats() // Aplicar filtros iniciales
+    showMessage('Chats cargados correctamente', 'success')
+  } catch (err: any) {
+    showMessage('Error cargando chats', 'error')
+    console.error('Error loading chats:', err)
+  }
+}
+
+// TODO: Implementar función para obtener modo del chat desde BD
+// const getChatModeFromDB = async (chatId: string) => {
+//   try {
+//     // Aquí iría la llamada a la API para obtener el modo del chat
+//     return null
+//   } catch (err) {
+//     return null
+//   }
+// }
+
+const filterChats = () => {
+  let filtered = [...chats.value]
+
+  // Filtro de búsqueda
+  if (chatSearch.value.trim()) {
+    const searchTerm = chatSearch.value.toLowerCase()
+    filtered = filtered.filter(chat =>
+      chat.name.toLowerCase().includes(searchTerm) ||
+      (chat.lastMessage?.text && chat.lastMessage.text.toLowerCase().includes(searchTerm))
+    )
+  }
+
+  // Filtro por modo
+  if (chatFilter.value !== 'all') {
+    switch (chatFilter.value) {
+      case 'bot':
+        filtered = filtered.filter(chat => chat.botMode)
+        break
+      case 'user':
+        filtered = filtered.filter(chat => !chat.botMode)
+        break
+      case 'unread':
+        filtered = filtered.filter(chat => chat.unreadCount > 0)
+        break
+    }
+  }
+
+  filteredChats.value = filtered
+}
+
+const selectChat = async (chat: any) => {
+  selectedChat.value = chat
+  await loadChatMessages(chat.id)
+}
+
+const loadChatMessages = async (chatId: string) => {
+  try {
+    const data = await getChatMessages(chatId)
+    chatMessages.value = data.messages || []
+    await nextTick()
+    scrollToBottom()
+  } catch (err: any) {
+    showMessage('Error cargando mensajes', 'error')
+    console.error('Error loading messages:', err)
+  }
+}
+
+const toggleChatMode = async (chat: any) => {
+  const newMode = !chat.botMode
+  try {
+    // TODO: Implementar persistencia en BD
+    chat.botMode = newMode
+    showMessage(`Modo ${newMode ? 'bot' : 'usuario'} activado para ${chat.name}`, 'success')
+  } catch (err: any) {
+    showMessage('Error actualizando modo de chat', 'error')
+    console.error('Error updating chat mode:', err)
+  }
+}
+
+const sendMessage = async () => {
+  if (!newMessage.value.trim() || !selectedChat.value) return
+
+  try {
+    await sendChatMessage(selectedChat.value.id, newMessage.value.trim())
+
+    // Agregar mensaje a la lista local
+    const message = {
+      id: Date.now().toString(),
+      text: newMessage.value.trim(),
+      fromMe: true,
+      timestamp: Date.now() / 1000
+    }
+    chatMessages.value.push(message)
+    newMessage.value = ''
+    await nextTick()
+    scrollToBottom()
+    showMessage('Mensaje enviado', 'success')
+  } catch (err: any) {
+    showMessage('Error enviando mensaje', 'error')
+    console.error('Error sending message:', err)
+  }
+}
+
+const closeChat = () => {
+  selectedChat.value = null
+  chatMessages.value = []
+}
+
+const archiveSelectedChat = async () => {
+  if (!selectedChat.value) return
+
+  try {
+    // Simular archivado por ahora
+    showMessage(`Chat "${selectedChat.value.name}" archivado correctamente`, 'success')
+    // Remover de la lista de chats
+    chats.value = chats.value.filter(chat => chat.id !== selectedChat.value.id)
+    closeChat()
+  } catch (err: any) {
+    showMessage('Error archivando chat', 'error')
+    console.error('Error archiving chat:', err)
+  }
+}
+
+const exportChat = async () => {
+  if (!selectedChat.value) return
+
+  try {
+    // Simular exportación por ahora
+    const conversationText = chatMessages.value.map((msg: any) =>
+      `${formatMessageDate(msg.timestamp)} ${msg.fromMe ? 'Tú' : 'Cliente'}: ${msg.text || msg.message}`
+    ).join('\n')
+
+    // Descargar archivo
+    const blob = new Blob([conversationText], { type: 'text/plain' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `chat_${selectedChat.value.name}_${new Date().toISOString().split('T')[0]}.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+
+    showMessage('Conversación exportada correctamente', 'success')
+  } catch (err: any) {
+    showMessage('Error exportando conversación', 'error')
+    console.error('Error exporting conversation:', err)
+  }
+}
+
+const scrollToBottom = () => {
+  if (messagesContainer.value) {
+    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+  }
+}
+
 // Utilidades
 const showMessage = (text: string, type: 'success' | 'error' = 'success') => {
   message.value = text
@@ -299,6 +707,50 @@ const showMessage = (text: string, type: 'success' | 'error' = 'success') => {
 const clearMessage = () => {
   message.value = ''
   clearError()
+}
+
+const formatDate = (dateString: string) => {
+  if (!dateString) return ''
+  try {
+    const date = new Date(dateString)
+    return date.toLocaleString('es-CO', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch (error) {
+    return dateString
+  }
+}
+
+const formatChatDate = (timestamp?: number) => {
+  if (!timestamp) return ''
+  try {
+    const date = new Date(timestamp * 1000)
+    return date.toLocaleString('es-CO', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch (error) {
+    return ''
+  }
+}
+
+const formatMessageDate = (timestamp?: number) => {
+  if (!timestamp) return ''
+  try {
+    const date = new Date(timestamp * 1000)
+    return date.toLocaleString('es-CO', {
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch (error) {
+    return ''
+  }
 }
 
 // Polling para actualizar estado automáticamente
