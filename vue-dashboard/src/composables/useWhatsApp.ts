@@ -52,7 +52,7 @@ export function useWhatsApp() {
       // Si no está generando, forzar restart
       if (whatsappData.value?.status !== 'waiting_for_scan' && whatsappData.value?.status !== 'initializing') {
         console.log('🔄 Forzando restart para generar QR...')
-        await api.post('/api/v1/whatsapp/restart')
+        await restartSession()
         
         // Esperar un momento y volver a verificar
         setTimeout(fetchWhatsAppStatus, 2000)
@@ -74,7 +74,7 @@ export function useWhatsApp() {
       clearError()
       
       // Restart para generar nuevo QR
-      await api.post('/api/v1/whatsapp/restart')
+      await restartSession()
       
       // Esperar y actualizar estado
       setTimeout(fetchWhatsAppStatus, 2000)
@@ -107,13 +107,81 @@ export function useWhatsApp() {
     }
   }
 
+  // 🆕 Nuevo método: Reiniciar sesión completa
+  const restartSession = async () => {
+    try {
+      isLoading.value = true
+      clearError()
+      
+      const response = await api.post('/api/v1/whatsapp/restart')
+      
+      // Actualizar estado local
+      whatsappData.value = { 
+        connected: false, 
+        status: 'restarting',
+        message: 'Reiniciando sesión...'
+      }
+      
+      return response.data
+    } catch (err: any) {
+      error.value = err.response?.data?.error || err.message || 'Error reiniciando sesión'
+      console.error('Error restarting session:', err)
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // 🆕 Nuevo método: Limpiar credenciales
+  const clearSession = async () => {
+    try {
+      isLoading.value = true
+      clearError()
+      
+      const response = await api.post('/api/v1/whatsapp/clear-session')
+      
+      // Resetear estado local
+      whatsappData.value = { 
+        connected: false, 
+        status: 'cleared',
+        message: 'Credenciales limpiadas'
+      }
+      
+      return response.data
+    } catch (err: any) {
+      error.value = err.response?.data?.error || err.message || 'Error limpiando credenciales'
+      console.error('Error clearing session:', err)
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // 🆕 Nuevo método: Obtener estado detallado
+  const getDetailedStatus = async () => {
+    try {
+      isLoading.value = true
+      clearError()
+      
+      const response = await api.get('/api/v1/whatsapp/status')
+      
+      return response.data
+    } catch (err: any) {
+      error.value = err.response?.data?.error || err.message || 'Error obteniendo estado detallado'
+      console.error('Error getting detailed status:', err)
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   const sendMessage = async (number: string, message: string) => {
     try {
       isLoading.value = true
       clearError()
       
       const response = await api.post('/api/v1/whatsapp/send', {
-        number,
+        to: number,  // Cambié de 'number' a 'to' para coincidir con la API
         message
       })
       
@@ -133,12 +201,15 @@ export function useWhatsApp() {
     isLoading,
     error,
     
-    // Métodos
+    // Métodos existentes
     fetchWhatsAppStatus,
     generateQR,
     refreshQR,
     disconnectWhatsApp,
     sendMessage,
-    clearError
+    clearError,
+    restartSession,
+    clearSession,
+    getDetailedStatus
   }
 }

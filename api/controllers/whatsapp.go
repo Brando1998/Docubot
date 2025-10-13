@@ -243,84 +243,86 @@ func SendWhatsAppMessage(c *gin.Context) {
 	c.JSON(http.StatusOK, baileysResponse)
 }
 
-// GetWhatsAppSession obtiene información de una sesión específica
-// @Summary Obtener sesión de WhatsApp
-// @Description Obtiene información de una sesión específica de WhatsApp
-// @Tags whatsapp
-// @Produce json
-// @Param session_id path string true "ID de la sesión"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /api/v1/whatsapp/session/{session_id} [get]
-func GetWhatsAppSession(c *gin.Context) {
-	sessionID := c.Param("session_id")
-	if sessionID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "ID de sesión requerido",
-		})
-		return
-	}
-
-	// Por ahora retornamos el estado general ya que Baileys maneja una sola sesión
-	status := checkBaileysConnection()
-	c.JSON(http.StatusOK, gin.H{
-		"session_id": sessionID,
-		"status":     status,
-	})
-}
-
-// CreateWhatsAppSession crea una nueva sesión de WhatsApp
-// @Summary Crear sesión de WhatsApp
-// @Description Crea una nueva sesión de WhatsApp (reinicia Baileys)
+// RestartWhatsAppSession reinicia la sesión completa de WhatsApp
+// @Summary Reiniciar sesión de WhatsApp
+// @Description Reinicia completamente la sesión de WhatsApp (equivale a reiniciar Baileys)
 // @Tags whatsapp
 // @Produce json
 // @Success 200 {object} map[string]interface{}
 // @Failure 500 {object} map[string]string
-// @Router /api/v1/whatsapp/session [post]
-func CreateWhatsAppSession(c *gin.Context) {
-	// URL para reiniciar/crear sesión en Baileys
-	baileysURL := "http://baileys:3000/restart" // Endpoint que deberías implementar en Baileys
+// @Router /api/v1/whatsapp/restart [post]
+func RestartWhatsAppSession(c *gin.Context) {
+	// URL para reiniciar sesión en Baileys
+	baileysURL := "http://baileys:3000/restart"
 
 	resp, err := http.Post(baileysURL, "application/json", nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Error creando sesión",
+			"error":   "Error reiniciando sesión de WhatsApp",
 			"details": err.Error(),
 		})
 		return
 	}
 	defer resp.Body.Close()
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Sesión creada/reiniciada correctamente",
-		"status":  "restarting",
-	})
+	if resp.StatusCode != http.StatusOK {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Error en el servicio de WhatsApp al reiniciar",
+		})
+		return
+	}
+
+	// Decodificar respuesta de Baileys
+	var baileysResponse map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&baileysResponse); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Error procesando respuesta de reinicio",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, baileysResponse)
 }
 
-// Funciones auxiliares
+// ClearWhatsAppSession limpia las credenciales de WhatsApp
+// @Summary Limpiar credenciales de WhatsApp
+// @Description Limpia completamente las credenciales almacenadas de WhatsApp
+// @Tags whatsapp
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/whatsapp/clear-session [post]
+func ClearWhatsAppSession(c *gin.Context) {
+	// URL para limpiar credenciales en Baileys
+	baileysURL := "http://baileys:3000/clear-session"
 
-func checkBaileysConnection() map[string]interface{} {
-	// Verificar conexión con Baileys vía HTTP
-	baileysURL := "http://baileys:3000/health"
-
-	resp, err := http.Get(baileysURL)
+	resp, err := http.Post(baileysURL, "application/json", nil)
 	if err != nil {
-		return map[string]interface{}{
-			"connected": false,
-			"error":     err.Error(),
-		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Error limpiando credenciales de WhatsApp",
+			"details": err.Error(),
+		})
+		return
 	}
 	defer resp.Body.Close()
 
-	var healthResponse map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&healthResponse); err != nil {
-		return map[string]interface{}{
-			"connected": false,
-			"error":     "Error parsing response",
-		}
+	if resp.StatusCode != http.StatusOK {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Error en el servicio de WhatsApp al limpiar credenciales",
+		})
+		return
 	}
 
-	return healthResponse
+	// Decodificar respuesta de Baileys
+	var baileysResponse map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&baileysResponse); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Error procesando respuesta de limpieza",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, baileysResponse)
 }

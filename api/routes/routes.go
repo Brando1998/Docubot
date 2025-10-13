@@ -87,9 +87,9 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 			whatsappGroup.GET("/status", controllers.GetSessionStatus)        // Estado detallado
 
 			// Endpoints para manejo de mensajes y sesiones
-			whatsappGroup.POST("/send", controllers.SendWhatsAppMessage)              // Enviar mensaje
-			whatsappGroup.GET("/session/:session_id", controllers.GetWhatsAppSession) // Obtener sesión específica
-			whatsappGroup.POST("/session", controllers.CreateWhatsAppSession)         // Crear nueva sesión
+			whatsappGroup.POST("/send", controllers.SendWhatsAppMessage)           // Enviar mensaje
+			whatsappGroup.POST("/restart", controllers.RestartWhatsAppSession)     // Reiniciar sesión completa
+			whatsappGroup.POST("/clear-session", controllers.ClearWhatsAppSession) // Limpiar credenciales
 		}
 
 		// --------------------------
