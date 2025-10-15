@@ -14,10 +14,15 @@ if [ ! -f models/current-model.tar.gz ]; then
     echo "❌ ERROR: Pre-trained model not found!"
     echo "Available files in models/:"
     ls -la models/ || echo "No models directory found"
-    
+
     # Intentar entrenar modelo si no existe
     echo "🤖 Training model as fallback..."
     if [ -f domain.yml ] && [ -f config.yml ] && [ -d data ]; then
+        echo "🧹 Cleaning old models before training..."
+        # Eliminar modelos antiguos (excepto current-model.tar.gz si existe)
+        find models/ -name "*.tar.gz" -type f ! -name "current-model.tar.gz" -exec rm -f {} \; 2>/dev/null || true
+        echo "✅ Old models cleaned"
+
         rasa train --fixed-model-name current-model
     else
         echo "❌ Cannot train model: missing configuration files"

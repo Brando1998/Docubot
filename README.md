@@ -15,15 +15,15 @@ Docubot es un ecosistema de chatbot modular que combina múltiples tecnologías 
 
 ### Componentes Principales
 
-| Servicio | Tecnología | Puerto | Descripción |
-|----------|------------|--------|-------------|
-| **Vue Dashboard** | Vue 3 + TypeScript + Vite | 3002 | Frontend administrativo para gestión y configuración |
-| **API Backend** | Go + Gin | 8080 | Hub central de comunicación y lógica de negocio |
-| **Baileys Gateway** | Node.js + Baileys | 3000 | Conexión directa con WhatsApp Web |
-| **Rasa Bot** | Python + Rasa | 5005 | Motor de NLP y gestión de conversaciones |
-| **Playwright Actions** | Node.js + Playwright | 3001 | Automatización web para acciones específicas |
-| **PostgreSQL** | PostgreSQL | 5432 | Base de datos principal |
-| **MongoDB** | MongoDB | 27017 | Base de datos para documentos y logs |
+| Servicio | Tecnología | Puerto Dev | Puerto Prod | Descripción |
+|----------|------------|------------|-------------|-------------|
+| **Vue Dashboard** | Vue 3 + TypeScript + Vite | 3002 | 80 | Frontend administrativo para gestión y configuración |
+| **API Backend** | Go + Gin | 8080 | 8080 | Hub central de comunicación y lógica de negocio |
+| **Baileys Gateway** | Node.js + Baileys | 3000 | N/A | Conexión directa con WhatsApp Web |
+| **Rasa Bot** | Python + Rasa | 5005 | N/A | Motor de NLP y gestión de conversaciones |
+| **Playwright Actions** | Node.js + Playwright | 3001 | N/A | Automatización web para acciones específicas |
+| **PostgreSQL** | PostgreSQL | 5432 | 5432 | Base de datos principal |
+| **MongoDB** | MongoDB | 27017 | 27017 | Base de datos para documentos y logs |
 
 ## 🔄 Flujo de Comunicación Detallado
 
@@ -203,47 +203,175 @@ class ActionExpedirManifiesto(Action):
 
 ## ⚙️ Configuración de Servicios
 
-### Variables de Entorno Críticas
-```bash
-# Comunicación entre servicios
-RASA_URL=http://rasa:5005
-PLAYWRIGHT_URL=http://playwright:3001
-API_URL=http://api:8080
-BAILEYS_PORT=3000
+### Variables de Entorno por Servicio
 
+#### API Backend (.env)
+```bash
 # Base de datos
 POSTGRES_HOST=postgres
-MONGO_URI=mongodb://mongodb:27017
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=abcd1234
+POSTGRES_DB=docubot_db
+POSTGRES_PORT=5432
+
+# MongoDB
+MONGO_URI=mongodb://admin:password@mongodb:27017/docubot?authSource=admin
+MONGO_DB=docubot
+
+# Autenticación
+PASETO_SECRET_KEY=your-secret-key
+
+# Servicios externos
+RASA_URL=http://rasa:5005
+PLAYWRIGHT_URL=http://playwright:3001
+
+# Servidor
+PORT=8080
+GIN_MODE=debug
+```
+
+#### Baileys WhatsApp (.env / .env.prod)
+```bash
+# Desarrollo
+WS_PORT=3000
+API_URL=http://localhost:8080
+BOT_NAME=DocuBot
+
+# Producción
+WS_PORT=3000
+API_URL=http://api:8080
+BOT_NAME=DocuBot
+
+# Configuración común
+MAX_SESSIONS=10
+MAX_RECONNECT_ATTEMPTS=5
+SESSION_TIMEOUT=1800000
+CLEANUP_INTERVAL=300000
+```
+
+#### Rasa Bot (.env / .env.prod)
+```bash
+# Desarrollo
+RASA_MODEL_SERVER=http://localhost:5005
+ACTION_ENDPOINT_URL=http://localhost:5055/webhook
+RASA_PORT=5005
+RASA_ENDPOINT=http://localhost:5005
+
+# Producción
+ACTION_ENDPOINT_URL=http://rasa:5055/webhook
+RASA_PORT=5005
+RASA_ENDPOINT=http://rasa:5005
+```
+
+#### Playwright Bot (.env / .env.prod)
+```bash
+# Desarrollo
+NODE_ENV=development
+API_URL=http://localhost:8080
+BROWSER=chromium
+PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+PORT=3001
+
+# Producción
+NODE_ENV=production
+API_URL=http://api:8080
+BROWSER=chromium
+PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+PORT=3001
+```
+
+#### Vue Dashboard (.env / .env.prod)
+```bash
+# Desarrollo
+NODE_ENV=development
+VUE_APP_API_URL=http://localhost:8080
+VITE_API_URL=http://localhost:8080
+
+# Producción
+NODE_ENV=production
+VUE_APP_API_URL=http://api:8080
+VITE_API_URL=http://api:8080
 ```
 
 ### Endpoints Principales
+
+#### Desarrollo (ENV=dev)
 - **Vue Dashboard**: http://localhost:3002
 - **API Health**: http://localhost:8080/health
 - **API Swagger**: http://localhost:8080/swagger/index.html
 - **Rasa Status**: http://localhost:5005/status
 - **Baileys Health**: http://localhost:3000/health
+- **Playwright Health**: http://localhost:3001/health
 
-## 🔧 Comandos de Desarrollo
+#### Producción (ENV=prod)
+- **Vue Dashboard**: http://localhost:80
+- **API Health**: http://localhost:8080/health
+- **API Swagger**: http://localhost:8080/swagger/index.html
+- **Rasa Status**: No expuesto externamente
+- **Baileys Health**: No expuesto externamente
+- **Playwright Health**: No expuesto externamente
+
+## 🔧 Comandos de Gestión
 
 ### Levantar Entorno Completo
 ```bash
+# Desarrollo (por defecto)
 make up-sequential  # Recomendado: despliega servicios en orden
 make up-local      # Alternativo: despliega todo junto
+
+# Producción
+make ENV=prod up-sequential
+make up-prod       # Alias directo para producción
+```
+
+### Gestión de Rasa
+```bash
+make rasa-train        # Entrenar modelo (limpia antiguos automáticamente)
+make rasa-clean-models # Limpiar solo modelos antiguos
+make rasa-list-models  # Ver modelos disponibles
+make rasa-shell        # Abrir shell interactivo de Rasa
 ```
 
 ### Logs y Debugging
 ```bash
+# Todos los entornos soportan ENV=dev|prod
 make logs-all       # Todos los logs
 make logs-baileys   # Solo Baileys
 make logs-api       # Solo API
 make logs-rasa      # Solo Rasa
+make logs-playwright # Solo Playwright
+make logs-database  # Logs de bases de datos
+make logs-auth      # Logs de autenticación
+```
+
+### Estado y Monitoreo
+```bash
+make status         # Estado de servicios
+make health-check   # Verificación de salud
 ```
 
 ### Reiniciar Servicios
 ```bash
+make restart         # Todos los servicios
 make restart-api
-make restart-baileys  
+make restart-baileys
 make restart-rasa
+make restart-vue
+```
+
+### Gestión de Usuarios Admin
+```bash
+make create-admin        # Crear admin manualmente
+make reset-admin         # Resetear contraseña admin
+make list-admins         # Listar administradores
+make show-admin-credentials # Mostrar credenciales por defecto
+```
+
+### Limpieza
+```bash
+make clean-project   # Limpiar proyecto específico
+make clean-all       # ⚠️  PELIGRO: Limpiar todo Docker
+make reset-database  # Resetear bases de datos
 ```
 
 ## 🚨 Puntos Críticos
@@ -251,8 +379,14 @@ make restart-rasa
 ### Dependencias de Inicio
 1. **PostgreSQL/MongoDB** deben estar listos primero
 2. **API** debe iniciarse antes que Baileys
-3. **Rasa** debe estar entrenado con modelo actual
+3. **Rasa** debe estar entrenado con modelo actual (usa `current-model.tar.gz`)
 4. **Baileys** necesita sesión activa de WhatsApp
+
+### Gestión de Modelos Rasa
+- Los modelos se almacenan en `rasa-bot/models/`
+- `current-model.tar.gz` es un enlace simbólico al modelo activo
+- Los modelos antiguos se limpian automáticamente al entrenar nuevos
+- Comando recomendado: `make rasa-train`
 
 ### Gestión de Errores
 - API maneja reconexiones automáticas con Rasa
@@ -265,6 +399,7 @@ make restart-rasa
 - Validación de mensajes entrantes
 - Rate limiting por usuario
 - Sanitización de datos antes de enviar a servicios externos
+- Variables sensibles en archivos `.env` separados por entorno
 
 ## 📈 Escalabilidad
 
@@ -278,6 +413,55 @@ make restart-rasa
 - Caché Redis para sesiones frecuentes
 - Optimización de queries en PostgreSQL
 
+## 📁 Estructura Actual del Proyecto
+
+```
+.
+├── .env                    # Variables API (desarrollo)
+├── .env.example           # Plantilla variables API
+├── docker-compose.yml     # Configuración desarrollo
+├── docker-compose.prod.yml # Configuración producción
+├── Makefile              # Comandos de gestión
+├── README.md             # Esta documentación
+├── structure.md          # Estructura detallada
+├── api/                  # Backend Go
+│   ├── .env             # Variables desarrollo
+│   ├── .env.example     # Plantilla variables
+│   ├── cmd/api/         # Punto de entrada
+│   ├── config/          # Configuración
+│   ├── controllers/     # Controladores HTTP
+│   ├── databases/       # Conexiones BD
+│   ├── middleware/      # Middleware
+│   ├── models/          # Modelos de datos
+│   ├── repositories/    # Capa de datos
+│   ├── routes/          # Definición rutas
+│   └── services/        # Lógica de negocio
+├── baileys-ws/          # Gateway WhatsApp
+│   ├── .env            # Variables desarrollo
+│   ├── .env.prod       # Variables producción
+│   ├── .env.example    # Plantilla variables
+│   ├── auth/           # Sesiones WhatsApp
+│   └── src/            # Código fuente
+├── rasa-bot/            # Bot NLP
+│   ├── .env            # Variables desarrollo
+│   ├── .env.prod       # Variables producción
+│   ├── .env.example    # Plantilla variables
+│   ├── models/         # Modelos entrenados
+│   ├── actions/        # Acciones personalizadas
+│   ├── data/           # Datos entrenamiento
+│   └── config.yml      # Configuración Rasa
+├── playwright-bot/      # Automatización web
+│   ├── .env           # Variables desarrollo
+│   ├── .env.prod      # Variables producción
+│   └── .env.example   # Plantilla variables
+├── vue-dashboard/       # Frontend admin
+│   ├── .env           # Variables desarrollo
+│   ├── .env.prod      # Variables producción
+│   └── src/           # Código Vue
+├── docker/             # Dockerfiles
+└── k8s/               # Configuración Kubernetes
+```
+
 ---
 
-*Esta documentación refleja la implementación actual del sistema basada en el análisis del código fuente.*
+*Esta documentación refleja la implementación actual del sistema con soporte completo para desarrollo y producción.*

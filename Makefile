@@ -233,6 +233,32 @@ vue-install: ## Instalar dependencias de Vue (local)
 	@echo "📦 Instalando dependencias de Vue..."
 	cd vue-dashboard && npm install
 
+# ===== COMANDOS DE RASA =====
+rasa-train: ## Entrenar modelo de Rasa y limpiar modelos antiguos
+	@echo "🤖 Entrenando modelo de Rasa..."
+	@echo "🧹 Limpiando modelos antiguos..."
+	cd rasa-bot && find models/ -name "*.tar.gz" -type f ! -name "current-model.tar.gz" -exec rm -f {} \; 2>/dev/null || true
+	@echo "✅ Modelos antiguos eliminados"
+	cd rasa-bot && rasa train --fixed-model-name current-model
+	@echo "✅ Modelo entrenado exitosamente"
+
+rasa-clean-models: ## Limpiar solo modelos antiguos de Rasa (mantener current-model)
+	@echo "🧹 Limpiando modelos antiguos de Rasa..."
+	cd rasa-bot && find models/ -name "*.tar.gz" -type f ! -name "current-model.tar.gz" -exec rm -f {} \;
+	@echo "✅ Modelos antiguos eliminados. Modelos restantes:"
+	@cd rasa-bot && ls -la models/ | grep -E "\.tar\.gz|current-model"
+
+rasa-list-models: ## Listar todos los modelos de Rasa disponibles
+	@echo "📋 Modelos de Rasa disponibles:"
+	@cd rasa-bot && ls -la models/ | grep -E "\.tar\.gz|current-model" | head -10
+	@echo ""
+	@echo "💡 Para usar un modelo específico:"
+	@echo "   cd rasa-bot && ln -sf models/NOMBRE_MODELO.tar.gz models/current-model.tar.gz"
+
+rasa-shell: ## Abrir shell interactivo de Rasa
+	@echo "💬 Abriendo shell interactivo de Rasa..."
+	cd rasa-bot && rasa shell
+
 # Comandos Kubernetes
 k8s-deploy: ## Desplegar en Kubernetes
 	kubectl apply -f k8s/configmaps/
