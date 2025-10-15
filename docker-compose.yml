@@ -56,7 +56,7 @@ services:
       - ./rasa-bot:/app
       - rasa_models:/app/models
     env_file:
-      - ./rasa-bot/.env
+      - ./env/dev/rasa.env
     restart: unless-stopped
     command: >
       bash -c "
@@ -79,7 +79,7 @@ services:
     ports:
       - "3001:3001"
     env_file:
-      - ./playwright-bot/.env
+      - ./env/dev/playwright.env
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1"]
@@ -100,7 +100,7 @@ services:
     ports:
       - "3002:3002"
     env_file:
-      - ./vue-dashboard/.env
+      - ./env/dev/vue.env
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health"]
@@ -126,17 +126,11 @@ services:
         condition: service_healthy
     ports:
       - "8080:8080"
+    env_file:
+      - ./env/dev/api.env
     environment:
-      - PORT=8080
-      - GIN_MODE=${GIN_MODE:-debug}
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-abcd1234}
-      - POSTGRES_DB=${POSTGRES_DB:-docubot_db}
-      - MONGO_URI=mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-password}@mongodb:27017/${MONGO_DB:-docubot}?authSource=admin
-      - MONGO_DB=${MONGO_DB:-docubot}
-      - PASETO_SECRET_KEY=${PASETO_SECRET_KEY:-y7F3q9tPwXkRzZbLmNvQ2s5VpJ8HxYr4}
       - RASA_URL=http://rasa:5005
       - PLAYWRIGHT_URL=http://playwright:3001
     restart: unless-stopped
@@ -164,7 +158,7 @@ services:
       - baileys_auth:/app/auth
       - baileys_sessions:/app/src/sessions
     env_file:
-      - ./baileys-ws/.env
+      - ./env/dev/baileys.env
     environment:
       - NODE_ENV=production
     restart: unless-stopped

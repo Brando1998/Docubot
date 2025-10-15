@@ -49,7 +49,7 @@ services:
       - ./rasa-bot:/app
       - rasa_models:/app/models
     env_file:
-      - ./rasa-bot/.env.prod
+      - ./env/prod/rasa.env
     restart: unless-stopped
     command: >
       bash -c "
@@ -71,7 +71,7 @@ services:
     expose:
       - "3001"
     env_file:
-      - ./playwright-bot/.env.prod
+      - ./env/prod/playwright.env
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1"]
@@ -96,17 +96,11 @@ services:
         condition: service_healthy
     expose:
       - "8080"
+    env_file:
+      - ./env/prod/api.env
     environment:
-      - PORT=8080
-      - GIN_MODE=release
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - MONGO_URI=mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/${MONGO_DB}?authSource=admin
-      - MONGO_DB=${MONGO_DB}
-      - PASETO_SECRET_KEY=${PASETO_SECRET_KEY}
       - RASA_URL=http://rasa:5005
       - PLAYWRIGHT_URL=http://playwright:3001
     restart: unless-stopped
@@ -133,7 +127,7 @@ services:
       - baileys_auth:/app/auth
       - baileys_sessions:/app/src/sessions
     env_file:
-      - ./baileys-ws/.env.prod
+      - ./env/prod/baileys.env
     environment:
       - NODE_ENV=production
     restart: unless-stopped
@@ -155,7 +149,7 @@ services:
     ports:
       - "80:80"
     env_file:
-      - ./vue-dashboard/.env.prod
+      - ./env/prod/vue.env
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]

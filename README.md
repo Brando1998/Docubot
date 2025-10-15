@@ -417,16 +417,29 @@ make reset-database  # Resetear bases de datos
 
 ```
 .
-├── .env                    # Variables API (desarrollo)
-├── .env.example           # Plantilla variables API
+├── env/                  # 📁 Directorio centralizado de variables de entorno
+│   ├── dev/             # 🔧 Variables desarrollo
+│   │   ├── api.env
+│   │   ├── api.env.example
+│   │   ├── baileys.env
+│   │   ├── baileys.env.example
+│   │   ├── playwright.env
+│   │   ├── playwright.env.example
+│   │   ├── rasa.env
+│   │   ├── rasa.env.example
+│   │   └── vue.env
+│   └── prod/            # 🏭 Variables producción
+│       ├── api.env
+│       ├── baileys.env
+│       ├── playwright.env
+│       ├── rasa.env
+│       └── vue.env
 ├── docker-compose.yml     # Configuración desarrollo
 ├── docker-compose.prod.yml # Configuración producción
 ├── Makefile              # Comandos de gestión
 ├── README.md             # Esta documentación
 ├── structure.md          # Estructura detallada
 ├── api/                  # Backend Go
-│   ├── .env             # Variables desarrollo
-│   ├── .env.example     # Plantilla variables
 │   ├── cmd/api/         # Punto de entrada
 │   ├── config/          # Configuración
 │   ├── controllers/     # Controladores HTTP
@@ -437,29 +450,42 @@ make reset-database  # Resetear bases de datos
 │   ├── routes/          # Definición rutas
 │   └── services/        # Lógica de negocio
 ├── baileys-ws/          # Gateway WhatsApp
-│   ├── .env            # Variables desarrollo
-│   ├── .env.prod       # Variables producción
-│   ├── .env.example    # Plantilla variables
 │   ├── auth/           # Sesiones WhatsApp
 │   └── src/            # Código fuente
 ├── rasa-bot/            # Bot NLP
-│   ├── .env            # Variables desarrollo
-│   ├── .env.prod       # Variables producción
-│   ├── .env.example    # Plantilla variables
 │   ├── models/         # Modelos entrenados
 │   ├── actions/        # Acciones personalizadas
 │   ├── data/           # Datos entrenamiento
 │   └── config.yml      # Configuración Rasa
 ├── playwright-bot/      # Automatización web
-│   ├── .env           # Variables desarrollo
-│   ├── .env.prod      # Variables producción
-│   └── .env.example   # Plantilla variables
 ├── vue-dashboard/       # Frontend admin
-│   ├── .env           # Variables desarrollo
-│   ├── .env.prod      # Variables producción
-│   └── src/           # Código Vue
+│   └── src/            # Código Vue
 ├── docker/             # Dockerfiles
 └── k8s/               # Configuración Kubernetes
+```
+
+### 💡 Gestión Centralizada de Variables de Entorno
+
+**Para facilitar el despliegue en producción**, todas las variables de entorno están centralizadas en el directorio `env/`:
+
+- **`env/dev/`**: Variables para desarrollo local
+- **`env/prod/`**: Variables para producción
+
+**Comandos útiles para gestión de .env:**
+```bash
+make env-list      # Ver archivos .env disponibles
+make env-sync      # Copiar desde centralizado a módulos
+make env-backup    # Respaldar desde módulos al centralizado
+```
+
+**Para despliegue en producción:**
+```bash
+# Solo necesitas copiar el directorio env/ a tu servidor
+scp -r env/ usuario@servidor-prod:/ruta/del/proyecto/
+
+# O subir todo el directorio env/ a tu repositorio privado
+git add env/
+git commit -m "Add production environment variables"
 ```
 
 ---

@@ -7,6 +7,11 @@ COMPOSE_FILE_PROD := docker-compose.prod.yml
 ENV ?= dev
 COMPOSE_FILE_SELECTED := $(if $(filter prod production, $(ENV)),$(COMPOSE_FILE_PROD),$(COMPOSE_FILE))
 
+# Rutas de archivos .env centralizados
+ENV_DIR := env
+ENV_DEV_DIR := $(ENV_DIR)/dev
+ENV_PROD_DIR := $(ENV_DIR)/prod
+
 .PHONY: help up-local up-prod down-local down-prod build-all build-prod logs-api logs-vue logs-rasa logs-playwright logs-baileys clean clean-project clean-all
 
 help: ## Mostrar ayuda
@@ -258,6 +263,38 @@ rasa-list-models: ## Listar todos los modelos de Rasa disponibles
 rasa-shell: ## Abrir shell interactivo de Rasa
 	@echo "💬 Abriendo shell interactivo de Rasa..."
 	cd rasa-bot && rasa shell
+
+# ===== GESTIÓN DE ARCHIVOS .ENV =====
+env-sync: ## Sincronizar archivos .env desde el directorio centralizado
+	@echo "🔄 Sincronizando archivos .env..."
+	@cp $(ENV_DEV_DIR)/api.env ./.env 2>/dev/null || echo "⚠️  .env no encontrado"
+	@cp $(ENV_DEV_DIR)/baileys.env ./baileys-ws/.env 2>/dev/null || echo "⚠️  baileys .env no encontrado"
+	@cp $(ENV_DEV_DIR)/rasa.env ./rasa-bot/.env 2>/dev/null || echo "⚠️  rasa .env no encontrado"
+	@cp $(ENV_DEV_DIR)/playwright.env ./playwright-bot/.env 2>/dev/null || echo "⚠️  playwright .env no encontrado"
+	@cp $(ENV_DEV_DIR)/vue.env ./vue-dashboard/.env 2>/dev/null || echo "⚠️  vue .env no encontrado"
+	@echo "✅ Archivos .env sincronizados desde $(ENV_DEV_DIR)"
+
+env-backup: ## Respaldar archivos .env actuales al directorio centralizado
+	@echo "💾 Respaldando archivos .env actuales..."
+	@cp ./.env $(ENV_DEV_DIR)/api.env 2>/dev/null || echo "⚠️  .env no encontrado"
+	@cp ./baileys-ws/.env $(ENV_DEV_DIR)/baileys.env 2>/dev/null || echo "⚠️  baileys .env no encontrado"
+	@cp ./rasa-bot/.env $(ENV_DEV_DIR)/rasa.env 2>/dev/null || echo "⚠️  rasa .env no encontrado"
+	@cp ./playwright-bot/.env $(ENV_DEV_DIR)/playwright.env 2>/dev/null || echo "⚠️  playwright .env no encontrado"
+	@cp ./vue-dashboard/.env $(ENV_DEV_DIR)/vue.env 2>/dev/null || echo "⚠️  vue .env no encontrado"
+	@echo "✅ Archivos .env respaldados en $(ENV_DEV_DIR)"
+
+env-list: ## Listar todos los archivos .env disponibles
+	@echo "📋 Archivos .env disponibles:"
+	@echo ""
+	@echo "🔧 Desarrollo ($(ENV_DEV_DIR)/):"
+	@ls -la $(ENV_DEV_DIR)/ | grep "\.env" | awk '{print "   " $$9}'
+	@echo ""
+	@echo "🏭 Producción ($(ENV_PROD_DIR)/):"
+	@ls -la $(ENV_PROD_DIR)/ | grep "\.env" | awk '{print "   " $$9}'
+	@echo ""
+	@echo "💡 Comandos útiles:"
+	@echo "   make env-sync     # Copiar desde centralizado"
+	@echo "   make env-backup   # Respaldar al centralizado"
 
 # Comandos Kubernetes
 k8s-deploy: ## Desplegar en Kubernetes
