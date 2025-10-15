@@ -204,15 +204,45 @@ export class SessionManager {
             for (const msg of messages) {
                 if (!msg.message) continue;
                 const from = msg.key.remoteJid;
-                const text = msg.message.conversation || msg.message.extendedTextMessage?.text;
 
-                if (!from || !text || msg.key.fromMe) continue;
+                // Determinar el tipo de mensaje
+                let messageType = 'text';
+                let text = '';
 
-                console.log(`📨 [${sessionId}] Mensaje de ${from}: ${text}`);
+                if (msg.message.conversation || msg.message.extendedTextMessage?.text) {
+                    text = msg.message.conversation || msg.message.extendedTextMessage?.text;
+                    messageType = 'text';
+                } else if (msg.message.audioMessage) {
+                    text = '[Audio recibido]';
+                    messageType = 'audio';
+                } else if (msg.message.imageMessage) {
+                    text = '[Imagen recibida]';
+                    messageType = 'image';
+                } else if (msg.message.videoMessage) {
+                    text = '[Video recibido]';
+                    messageType = 'video';
+                } else if (msg.message.documentMessage) {
+                    text = '[Documento recibido]';
+                    messageType = 'document';
+                } else {
+                    text = '[Mensaje no soportado]';
+                    messageType = 'unknown';
+                }
+
+                if (!from || msg.key.fromMe) continue;
+
+                console.log(`📨 [${sessionId}] Mensaje de ${from}: ${text} (tipo: ${messageType})`);
                 session.status.last_activity = new Date();
 
-                // Aquí puedes agregar lógica para manejar mensajes
-                // Por ejemplo, enviar al backend via WebSocket
+                // Enviar al backend si hay conexión WebSocket
+                if (session.backendWS && session.backendWS.readyState === 1) {
+                    try {
+                        const { handleIncomingMessage } = await import('../handlers/messageHandler.js');
+                        await handleIncomingMessage(from, text, session.status.number, session.backendWS, messageType);
+                    } catch (error) {
+                        console.error(`Error enviando mensaje al backend: ${error}`);
+                    }
+                }
             }
         });
     }

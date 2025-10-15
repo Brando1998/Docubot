@@ -24,10 +24,11 @@ var (
 )
 
 type IncomingMessageRequest struct {
-	Phone     string `json:"phone"`
-	Message   string `json:"message"`
-	BotNumber string `json:"botNumber"`
-	SessionID string `json:"sessionId,omitempty"` // ID de la sesión para múltiples bots
+	Phone       string `json:"phone"`
+	Message     string `json:"message"`
+	BotNumber   string `json:"botNumber"`
+	SessionID   string `json:"sessionId,omitempty"` // ID de la sesión para múltiples bots
+	MessageType string `json:"messageType,omitempty"` // Tipo de mensaje (text, audio, image, etc.)
 }
 
 type RasaResponseItem struct {
@@ -117,7 +118,63 @@ func processIncomingMessage(msg IncomingMessageRequest, hub *WebSocketHub) error
 	}
 	botKey := fmt.Sprintf("%s:%s", sessionId, msg.BotNumber)
 
-	log.Printf("Procesando mensaje de %s a bot %s (session: %s): %s", msg.Phone, msg.BotNumber, sessionId, msg.Message)
+	log.Printf("Procesando mensaje de %s a bot %s (session: %s): %s (tipo: %s)", msg.Phone, msg.BotNumber, sessionId, msg.Message, msg.MessageType)
+
+	// Verificar si es un mensaje de audio
+	if msg.MessageType == "audio" {
+		log.Printf("Mensaje de audio recibido de %s - respondiendo automáticamente", msg.Phone)
+
+		// Responder automáticamente sin procesar con Rasa
+		responseText := "🤖 Lo siento, por ahora solo puedo procesar mensajes de texto. Por favor, envíame tu mensaje escrito. 📝"
+
+		// Enviar respuesta automática al cliente
+		if err := hub.SendToBot(botKey, map[string]interface{}{
+			"to":        msg.Phone,
+			"message":   responseText,
+			"sessionId": sessionId,
+		}); err != nil {
+			log.Printf("Failed to send audio response to bot: %v", err)
+		}
+
+		// Guardar el mensaje de audio y la respuesta en la DB
+		cleanPhone := strings.Split(msg.Phone, "@")[0]
+		client, err := clientRepo.GetOrCreateClient(cleanPhone, "", "")
+		if err != nil {
+			return fmt.Errorf("failed to get/create client: %w", err)
+		}
+
+		cleanBotNumber := strings.Split(msg.BotNumber, "@")[0]
+		bot, err := botRepo.GetOrCreateBot(cleanBotNumber, "Default Bot")
+		if err != nil {
+			return fmt.Errorf("failed to get/create bot: %w", err)
+		}
+
+		// Guardar mensaje de audio del usuario
+		clientMsg := models.Message{
+			ClientID:  client.ID,
+			BotID:     bot.ID,
+			Sender:    msg.Phone,
+			Text:      "[Audio recibido]",
+			Timestamp: time.Now(),
+		}
+		if err := conversationRepo.SaveMessage(context.TODO(), client.ID, bot.ID, clientMsg); err != nil {
+			log.Printf("Failed to save audio message: %v", err)
+		}
+
+		// Guardar respuesta automática del bot
+		botMsg := models.Message{
+			ClientID:  client.ID,
+			BotID:     bot.ID,
+			Sender:    "bot",
+			Text:      responseText,
+			Timestamp: time.Now(),
+		}
+		if err := conversationRepo.SaveMessage(context.TODO(), client.ID, bot.ID, botMsg); err != nil {
+			log.Printf("Failed to save bot response: %v", err)
+		}
+
+		return nil
+	}
 
 	// 1. Procesar cliente (guardar en DB)
 	cleanPhone := strings.Split(msg.Phone, "@")[0]
