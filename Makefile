@@ -348,13 +348,17 @@ check-ports: ## Verificar qué puertos están en uso - soporta ENV=dev|prod
 	fi
 
 # ===== GESTIÓN DE USUARIOS ADMIN =====
-create-admin: ## Crear usuario administrador manualmente - soporta ENV=dev|prod
-	@echo "🔧 Ejecutando script de creación de admin ($(ENV))..."
-	docker compose -f $(COMPOSE_FILE_SELECTED) exec api /app/scripts/create_admin.sh
+reset-admin: ## Resetear contraseña del administrador
+	@echo "🔄 Reseteando credenciales de admin..."
+	docker compose -f $(COMPOSE_FILE) exec api /app/bin/reset-admin
 
-reset-admin: ## Resetear contraseña del administrador - soporta ENV=dev|prod
-	@echo "🔄 Ejecutando reset de credenciales de admin ($(ENV))..."
-	docker compose -f $(COMPOSE_FILE_SELECTED) exec api sh -c "cd /app && go run ./scripts/reset-admin.go"
+create-admin: ## Crear usuario administrador (reinicia API para auto-crear)
+	@echo "🔧 Reiniciando API para crear admin por defecto..."
+	docker compose -f $(COMPOSE_FILE) restart api
+	@echo "⏳ Esperando que la API inicie..."
+	@sleep 5
+	@echo "📋 Verificando logs de creación del admin..."
+	docker compose -f $(COMPOSE_FILE) logs api | grep -A 5 "administrador"
 
 list-admins: ## Listar usuarios administradores - soporta ENV=dev|prod
 	@echo "📋 Listando usuarios administradores ($(ENV))..."
