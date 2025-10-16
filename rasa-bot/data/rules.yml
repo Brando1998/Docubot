@@ -1,35 +1,75 @@
 version: "3.1"
 
 rules:
-- rule: Saludo
+- rule: Saludo siempre responde amablemente
   steps:
   - intent: greet
   - action: utter_greet
 
-- rule: Despedida
+- rule: Despedida siempre responde cortésmente
   steps:
   - intent: goodbye
   - action: utter_goodbye
 
-- rule: Solicitud de manifiesto
+- rule: Agradecimiento del cliente
+  steps:
+  - intent: agradecer
+  - action: utter_agradecer
+
+- rule: Solicitud de manifiesto inicia formulario
   steps:
   - intent: solicitar_manifiesto
   - action: manifiesto_form
   - active_loop: manifiesto_form
 
-- rule: Confirmación de datos
-  steps:
-  - intent: affirm
+- rule: Después de completar formulario, enviar resumen
+  condition:
   - active_loop: manifiesto_form
+  steps:
+  - action: manifiesto_form
+  - active_loop: null
   - action: action_submit_manifiesto
 
-- rule: Negación de datos
+- rule: Después de enviar resumen, solicitar pago
+  steps:
+  - action: action_submit_manifiesto
+  - action: action_solicitar_pago
+
+- rule: Consulta de pago muestra información
+  steps:
+  - intent: consultar_pago
+  - action: action_solicitar_pago
+
+- rule: Confirmación de pago procesa y genera manifiesto
+  steps:
+  - intent: confirmar_pago
+  - action: action_confirmar_pago
+  - action: action_generar_manifiesto
+
+- rule: Implementar fallback cuando no se entiende
+  steps:
+  - intent: nlu_fallback
+  - action: utter_fallback
+
+- rule: Fallback en formulario activo
+  condition:
+  - active_loop: manifiesto_form
+  steps:
+  - intent: nlu_fallback
+  - action: utter_fallback
+  - action: manifiesto_form
+
+- rule: Usuario afirma durante formulario
+  condition:
+  - active_loop: manifiesto_form
+  steps:
+  - intent: affirm
+  - action: manifiesto_form
+
+- rule: Usuario niega durante formulario
+  condition:
+  - active_loop: manifiesto_form
   steps:
   - intent: deny
-  - active_loop: manifiesto_form
-  - action: action_default_fallback
-
-- rule: Implementar fallback
-  steps:
-    - intent: nlu_fallback
-    - action: utter_fallback
+  - action: utter_fallback
+  - action: manifiesto_form

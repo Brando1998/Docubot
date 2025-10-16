@@ -7,11 +7,9 @@ intents:
   - deny
   - solicitar_manifiesto
   - informar_datos
+  - consultar_pago
+  - confirmar_pago
   - nlu_fallback
-  - expedir_manifiesto
-  - registrar_conductor
-  - verificar_conductor
-  - generar_pago
 
 entities:
   - flete
@@ -124,45 +122,82 @@ slots:
       - active_loop: manifiesto_form
         requested_slot: destino
 
+  # Nuevo slot para seguimiento de pago
+  pago_pendiente:
+    type: bool
+    initial_value: false
+    influence_conversation: true
+    mappings:
+    - type: custom
+
+  monto_total:
+    type: text
+    influence_conversation: false
+    mappings:
+    - type: custom
+
 responses:
   utter_greet:
-    - text: "¡Hola! 👋 Soy tu asistente para generar manifiestos de carga. ¿En qué puedo ayudarte?"
+    - text: "Buenos días, gracias por comunicarte con Cootranscol Ltda. ¿En qué puedo ayudarte hoy? 😊"
+    - text: "Buenas tardes, bienvenido a Cootranscol Ltda. ¿Cómo puedo asistirte? 😊"
+    - text: "¡Hola! Un gusto saludarte. Soy tu asistente virtual de Cootranscol Ltda. ¿En qué te puedo colaborar? 😊"
   
   utter_goodbye:
-    - text: "¡Hasta luego! 👋 Que tengas un buen día."
+    - text: "Que tengas un excelente día. Estamos a tu disposición cuando lo necesites. ¡Hasta pronto! 👋"
+    - text: "Muchas gracias por contactarnos. Feliz día y quedamos atentos a cualquier requerimiento. 👋"
+    - text: "Con mucho gusto. Si necesitas algo más, no dudes en escribirnos. ¡Que estés muy bien! 👋"
 
   utter_ask_flete:
-    - text: "💰 Por favor indícame el valor del flete (ej: 150000 o $150,000)"
+    - text: "Por favor, indícame el valor del flete para este transporte.\n\nPuedes escribirlo así: $150.000 o 150000"
 
   utter_ask_descripcion:
-    - text: "📦 Descríbeme la carga que transportarás (ej: cajas de electrodomésticos)"
+    - text: "Perfecto. Ahora necesito que me indiques la descripción de la carga.\n\n¿Qué tipo de mercancía transportarás?\nEjemplo: Lácteos, frijol y varios, electrodomésticos, etc."
 
   utter_ask_peso:
-    - text: "⚖️ ¿Cuál es el peso total de la carga? (ej: 500 kg)"
+    - text: "Excelente. ¿Cuál es el peso total de la carga?\n\nPuedes indicarlo en kilos o toneladas.\nEjemplo: 500 kg, 4.5 toneladas, 2000 kilos"
 
   utter_ask_fecha_cargue:
-    - text: "📅 ¿Cuándo se realizará el cargue? (ej: 15/08/2023 8:00 AM)"
+    - text: "Muy bien. ¿Cuál es la fecha y hora de cargue?\n\nPuedes escribirlo así:\n• Hoy a las 8:00 am\n• 15 de octubre\n• Mañana por la tarde"
 
   utter_ask_fecha_descargue:
-    - text: "📅 ¿Cuándo se realizará la descarga? (ej: 16/08/2023 5:00 PM)"
+    - text: "Entendido. ¿Cuándo se realizará el descargue?\n\nIndícame la fecha y hora aproximada.\nEjemplo: 16 de octubre a las 5:00 pm"
 
   utter_ask_tarjeta:
-    - text: "🚗 Ingresa el número de la tarjeta de propiedad del vehículo"
+    - text: "Necesito la información de la tarjeta de propiedad del vehículo.\n\nPor favor, envíame:\n• Foto de la tarjeta de propiedad, o\n• Número de placa del vehículo"
 
   utter_ask_licencia:
-    - text: "🪪 Por favor comparte el número de tu licencia de conducción"
+    - text: "Casi terminamos. Por favor, envíame:\n• Foto de la licencia de conducción, o\n• Nombre completo y cédula del conductor"
 
   utter_ask_origen:
-    - text: "📍 ¿Desde dónde partirá la carga? (ciudad/dirección)"
+    - text: "¿Desde dónde se realizará el cargue?\n\nIndícame la ciudad o municipio de origen.\nEjemplo: Bogotá, Medellín, Pasto, etc."
 
   utter_ask_destino:
-    - text: "🎯 ¿Cuál es el destino final de la carga? (ciudad/dirección)"
+    - text: "¿Cuál es el destino del transporte?\n\nIndícame la ciudad o municipio de destino.\nEjemplo: Cali, Barranquilla, Bucaramanga, etc."
 
   utter_manifiesto_generado:
-    - text: "✅ ¡Manifiesto generado con éxito! En un momento recibirás el documento."
-  
+    - text: "¡Excelente! He generado exitosamente tu manifiesto de carga. 📋✅\n\nEn un momento te enviaré el documento completo."
+
+  utter_solicitar_pago:
+    - text: "Para finalizar, el valor del manifiesto es de $8.000 pesos.\n\n💳 Por favor realiza el pago a la siguiente cuenta Nequi:\n📱 Número: 3106806180\n💰 Valor: $8.000\n\nUna vez realices el pago, envíame el comprobante para procesar tu manifiesto. ¡Gracias!"
+
+  utter_confirmar_pago:
+    - text: "¡Perfecto! He recibido tu comprobante de pago. ✅\n\nYa puedo proceder con la generación de tu manifiesto.\nEn breve te enviaré el documento completo. ¡Muchas gracias por tu pago!"
+
   utter_fallback:
-    - text: "🤔 Lo siento, no entendí eso. ¿Podrías reformularlo?"
+    - text: "Disculpa, no he comprendido bien tu mensaje. ¿Podrías reformularlo?\n\nRecuerda que puedo ayudarte a:\n• Generar manifiestos de carga\n• Consultar información de pago\n• Resolver dudas sobre el servicio"
+    - text: "Perdón, no entendí tu solicitud. ¿Podrías explicarme de otra manera en qué necesitas ayuda?\n\nEstoy aquí para asistirte con tus manifiestos de transporte. 😊"
+
+  utter_agradecer:
+    - text: "¡Con mucho gusto! Para eso estamos. 😊"
+    - text: "Es un placer ayudarte. ¡Estamos para servirte!"
+
+actions:
+  - action_default_fallback
+  - action_submit_manifiesto
+  - action_solicitar_pago
+  - action_confirmar_pago
+  - action_generar_manifiesto
+  - validate_manifiesto_form
 
 forms:
   manifiesto_form:
@@ -177,11 +212,6 @@ forms:
       - origen
       - destino
 
-actions:
-  - action_default_fallback
-  - action_submit_manifiesto
-  - validate_manifiesto_form
-  - action_expedir_manifiesto
-  - action_registrar_conductor
-  - action_verificar_conductor
-  - action_generar_pago
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true

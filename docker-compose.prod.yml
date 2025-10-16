@@ -42,19 +42,24 @@ services:
         condition: service_healthy
       mongodb:
         condition: service_healthy
-    expose:
-      - "5005"
-      - "5055"
+    ports:
+      - "5005:5005"
+      - "5055:5055"  # Action server
     volumes:
-      - ./rasa-bot:/app
-      - rasa_models:/app/models
-    env_file:
-      - ./env/prod/rasa.env
+      # Solo montar archivos de configuración en desarrollo
+      # En producción, todo está en la imagen
+      - ./rasa-bot/actions:/app/actions:ro  # Solo lectura
+      # NO montar la carpeta models para evitar conflictos
+    environment:
+      - RASA_MODEL_SERVER=http://localhost:5005
+      - ACTION_ENDPOINT_URL=http://localhost:5055/webhook
+      - API_URL=${API_URL:-http://api:8080}
+      - PLAYWRIGHT_URL=${PLAYWRIGHT_URL:-http://playwright:3000}
     restart: unless-stopped
     command: >
       bash -c "
-        rasa run actions --port 5055 --enable-api --cors '*' --debug &
-        rasa run --enable-api --cors '*' --port 5005 --debug
+        rasa run actions --port 5055 --debug &
+        rasa run --enable-api --cors '*' --model models/current-model.tar.gz --port 5005 --debug
       "
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5005/status"]
@@ -62,7 +67,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-
+  
   playwright:
     build:
       context: ./playwright-bot

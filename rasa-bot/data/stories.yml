@@ -1,7 +1,7 @@
 version: "3.1"
 
 stories:
-- story: Flujo completo de manifiesto
+- story: Flujo completo de manifiesto con pago y generación
   steps:
   - intent: greet
   - action: utter_greet
@@ -10,9 +10,35 @@ stories:
   - active_loop: manifiesto_form
   - active_loop: null
   - action: action_submit_manifiesto
-  - action: utter_manifiesto_generado
+  - action: action_solicitar_pago
+  - intent: confirmar_pago
+  - action: action_confirmar_pago
+  - action: action_generar_manifiesto
+  - intent: agradecer
+  - action: utter_agradecer
   - intent: goodbye
   - action: utter_goodbye
+
+- story: Solicitud directa de manifiesto con pago y generación
+  steps:
+  - intent: solicitar_manifiesto
+  - action: manifiesto_form
+  - active_loop: manifiesto_form
+  - active_loop: null
+  - action: action_submit_manifiesto
+  - action: action_solicitar_pago
+  - intent: confirmar_pago
+  - action: action_confirmar_pago
+  - action: action_generar_manifiesto
+
+- story: Usuario consulta sobre pago primero
+  steps:
+  - intent: greet
+  - action: utter_greet
+  - intent: consultar_pago
+  - action: action_solicitar_pago
+  - intent: solicitar_manifiesto
+  - action: manifiesto_form
 
 - story: Usuario proporciona datos durante formulario
   steps:
@@ -23,10 +49,39 @@ stories:
   - action: manifiesto_form
   - active_loop: null
   - action: action_submit_manifiesto
+  - action: action_solicitar_pago
 
-- story: Saludo directo a solicitar manifiesto
+- story: Saludo y solicitud directa
   steps:
   - intent: greet
   - action: utter_greet
   - intent: solicitar_manifiesto  
+  - action: manifiesto_form
+  - active_loop: manifiesto_form
+
+- story: Cliente agradece después del servicio
+  steps:
+  - intent: agradecer
+  - action: utter_agradecer
+  - intent: goodbye
+  - action: utter_goodbye
+
+- story: Flujo con consulta de pago después de datos
+  steps:
+  - intent: solicitar_manifiesto
+  - action: manifiesto_form
+  - active_loop: manifiesto_form
+  - active_loop: null
+  - action: action_submit_manifiesto
+  - intent: consultar_pago
+  - action: action_solicitar_pago
+  - intent: confirmar_pago
+  - action: action_confirmar_pago
+  - action: action_generar_manifiesto
+
+- story: Usuario paga sin solicitud previa
+  steps:
+  - intent: confirmar_pago
+  - action: action_confirmar_pago
+  - intent: solicitar_manifiesto
   - action: manifiesto_form

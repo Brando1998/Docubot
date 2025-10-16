@@ -25,14 +25,16 @@ RUN test -f domain.yml || (echo "ERROR: domain.yml not found" && exit 1)
 RUN test -f config.yml || (echo "ERROR: config.yml not found" && exit 1)
 RUN test -d data || (echo "ERROR: data directory not found" && exit 1)
 
-# ⭐ ENTRENAR EL MODELO DURANTE EL BUILD ⭐
-RUN echo "🤖 Training Rasa model during build..." && \
+# ⭐ LIMPIAR MODELOS VIEJOS Y ENTRENAR NUEVO ⭐
+RUN echo "🧹 Cleaning old models..." && \
+    rm -rf models/* && \
+    echo "🤖 Training Rasa model during build..." && \
     rasa train --fixed-model-name current-model && \
     echo "✅ Model training completed!" && \
+    echo "📦 Models in directory:" && \
     ls -la models/
 
 # ✅ SOLUCIÓN CRÍTICA: Configurar permisos CORRECTAMENTE
-# Usar COPY con --chmod (Docker 20.10+) o RUN chmod después
 COPY start.sh /app/start.sh
 
 # ⚠️ ORDEN CRÍTICO: Permisos ANTES de cambiar usuario
