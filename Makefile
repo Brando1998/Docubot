@@ -216,7 +216,7 @@ restart-baileys: ## Reiniciar solo Baileys - soporta ENV=dev|prod
 dev-logs: ## Ver logs en tiempo real de todos los servicios - soporta ENV=dev|prod
 	docker compose -f $(COMPOSE_FILE_SELECTED) logs -f --tail=100
 
-dev-shell-api: ## Abrir shell en el contenedor de la API - soporta ENV=dev|prod
+dev-shell-api-old: ## Abrir shell en el contenedor de la API - soporta ENV=dev|prod
 	docker compose -f $(COMPOSE_FILE_SELECTED) exec api /bin/sh
 
 dev-shell-vue: ## Abrir shell en el contenedor de Vue - soporta ENV=dev|prod

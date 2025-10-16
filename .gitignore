@@ -92,3 +92,4 @@ docker-compose.override.yml
 .vscode/
 *.sublime-workspace
 *.sublime-project
+creds.txt

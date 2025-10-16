@@ -3,14 +3,14 @@ services:
     image: postgres:15-alpine
     container_name: docubot-postgres
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=abcd1234
+      - POSTGRES_DB=docubot_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d docubot_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -19,9 +19,9 @@ services:
     image: mongo:7-jammy
     container_name: docubot-mongo
     environment:
-      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USER}
-      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD}
-      - MONGO_INITDB_DATABASE=${MONGO_DB}
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+      - MONGO_INITDB_DATABASE=docubot
     volumes:
       - mongo_data:/data/db
     restart: unless-stopped
