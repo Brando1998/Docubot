@@ -5,12 +5,21 @@ nlu:
   examples: |
     - hola
     - buenos días
+    - buenas tardes
+    - buenas noches
     - qué tal
     - hey
     - buenas
     - saludos
     - buen día
     - qué hubo
+    - hola buenos días
+    - hola buenas tardes
+    - cómo está
+    - cómo estás
+    - buena tarde
+    - buena noche
+    - buen día cómo está
 
 - intent: goodbye
   examples: |
@@ -18,25 +27,42 @@ nlu:
     - hasta luego
     - nos vemos
     - chao
-    - todo bn
     - todo bien
+    - todo bn
     - hasta pronto
     - me retiro
+    - gracias hasta luego
+    - muchas gracias
+    - listo gracias
+    - perfecto gracias
+    - vale gracias
+    - ok gracias
+    - gracias por todo
+    - quedamos así
+    - quedamos así gracias
 
 - intent: affirm
   examples: |
     - sí
+    - si
     - claro
     - por supuesto
     - correcto
     - de una
     - sisas
-    - weno
     - listo
     - exacto
     - afirmativo
     - va
     - dale
+    - ok
+    - okay
+    - vale
+    - perfecto
+    - eso es
+    - así es
+    - confirmo
+    - todo bien
 
 - intent: deny
   examples: |
@@ -45,25 +71,15 @@ nlu:
     - negativo
     - para nada
     - nokas
-    - nopis
+    - nope
     - nop
     - nada
-    - nunca
     - incorrecto
-    - negativo
     - cancelar
+    - mejor no
+    - no gracias
+    - no por ahora
 
-- intent: ask_info
-  examples: |
-    - quiero información
-    - me puedes ayudar
-    - necesito datos sobre el producto
-    - cuéntame más
-    - qué servicios ofrecen
-    - necesito ayuda
-    - información por favor
-    - qué hacen
-    
 - intent: solicitar_manifiesto
   examples: |
     - quiero expedir un manifiesto
@@ -77,14 +93,86 @@ nlu:
     - formulario de carga
     - registro de mercancía
     - necesito el papel del transporte
-  
-- intent: informar_datos
+    - para un manifiesto
+    - me ayudas con un manifiesto
+    - requiero un manifiesto
+    - solicitar manifiesto
+    - expedir manifiesto
+    - me colaboras con un manifiesto
+    - por favor un manifiesto
+    - ayuda con manifiesto
+    - manifiesto por favor
+    - necesito sacar un manifiesto
+    - buenas necesito un manifiesto
+    - buenas tardes para un manifiesto
+
+- intent: consultar_pago
+  examples: |
+    - cuánto cuesta el manifiesto
+    - cuál es el valor del manifiesto
+    - precio del manifiesto
+    - cuánto debo pagar
+    - cuánto es
+    - valor a pagar
+    - cuánto sale
+    - información de pago
+    - cómo pago
+    - dónde pago
+    - a qué número pago
+    - cuál es el nequi
+    - datos para pagar
+    - método de pago
+    - formas de pago
+    - cuánto te debo
+    - cuántos manifiestos te debo
+    - tengo alguna deuda
+    - cuánto es el total
+
+- intent: confirmar_pago
+  examples: |
+    - ya pagué
+    - ya hice el pago
+    - ya transferí
+    - ya envié el dinero
+    - ya consigné
+    - listo ya pagué
+    - pagado
+    - ya está el pago
+    - acabo de pagar
+    - te envié el comprobante
+    - ahí va el comprobante
+    - comprobante de pago
+    - aquí está el pago
+    - ya te envié
+    - ya lo consigné
+    - listo ya te envío
+    - ya quedamos al día
+    - ya pago lo que debo
+
+- intent: agradecer
+  examples: |
+    - gracias
+    - muchas gracias
+    - te agradezco
+    - mil gracias
+    - super gracias
+    - gracias por la ayuda
+    - gracias por todo
+    - te agradezco mucho
+    - muy agradecido
+    - excelente gracias
   examples: |
     - flete: 150000, descripción: cajas de herramientas, peso: 500 kg
     - El flete es $120.000, llevo electrodomésticos que pesan 250kg
     - Tarjeta ABC123, licencia XYZ789, de Bogotá a Medellín
     - Cargue: 15/08 8am, descargue: 16/08 5pm
-    - Todo junto: Flete $180.000, 300kg de ropa, cargue mañana 9am en Cali, descargue pasado mediodía en Barranquilla, tarjeta T789, licencia L456
+    - Todo junto: Flete $180.000, 300kg de ropa, cargue mañana 9am en Cali, descargue pasado mediodía en Barranquilla
+    - origen bogotá destino cali
+    - llevo lácteos
+    - 4.5 toneladas
+    - mañana a las 8am
+    - el conductor es Juan Pérez
+    - placa ABC123
 
 - regex: flete
   examples: |
@@ -92,6 +180,8 @@ nlu:
     - valor del flete
     - costo del transporte
     - precio
+    - \$[\d,.]+
+    - [\d,.]+\s*pesos
 
 - regex: peso
   examples: |
@@ -100,6 +190,9 @@ nlu:
     - kilogramos
     - kg
     - peso total
+    - toneladas
+    - ton
+    - \d+\s*(kg|kilos|toneladas|ton)
 
 - lookup: tarjeta
   examples: |
@@ -107,6 +200,8 @@ nlu:
     - tarjeta de propiedad
     - tarjeta vehicular
     - documento del vehículo
+    - placa
+    - vehículo
 
 - lookup: licencia
   examples: |
@@ -114,6 +209,8 @@ nlu:
     - licencia de conducción
     - pase
     - documento de conducción
+    - conductor
+    - cédula
 
 - regex: fecha
   examples: |
@@ -122,4 +219,4 @@ nlu:
     - hora
     - \d{1,2}/\d{1,2}
     - \d{1,2}:\d{2}
-    - (mañana|pasado|hoy)
+    - (mañana|pasado|hoy|ayer)

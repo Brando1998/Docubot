@@ -9,6 +9,7 @@ intents:
   - informar_datos
   - consultar_pago
   - confirmar_pago
+  - agradecer
   - nlu_fallback
 
 entities:
@@ -190,6 +191,7 @@ responses:
   utter_agradecer:
     - text: "¡Con mucho gusto! Para eso estamos. 😊"
     - text: "Es un placer ayudarte. ¡Estamos para servirte!"
+    - text: "De nada, fue un placer asistirte. 😊"
 
 actions:
   - action_default_fallback
