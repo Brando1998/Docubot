@@ -28,15 +28,8 @@ class ActionSolicitarPago(Action):
     """
     Acción para solicitar el pago del manifiesto al cliente.
     
-    FLUJO FUTURO:
-    1. Genera código QR de Nequi con el monto
-    2. Envía QR al cliente vía WhatsApp
-    3. Webhook escucha cuando se completa el pago
-    4. Cuando pago confirmado -> llama a Playwright para generar documento
-    
-    FLUJO ACTUAL (DUMMY):
-    - Solo muestra información de pago
-    - Cliente confirma manualmente
+    FLUJO FUTURO: Genera QR de Nequi y espera webhook
+    FLUJO ACTUAL: Muestra información manual de pago
     """
     
     def name(self) -> Text:
@@ -49,22 +42,17 @@ class ActionSolicitarPago(Action):
         domain: Dict[Text, Any],
     ) -> List[EventType]:
         
-        # Valor fijo del manifiesto
         monto = "8000"
-        
-        # Obtener ID del cliente (sender)
         sender_id = tracker.sender_id
         
         logger.info(f"💳 Solicitando pago al cliente {sender_id}")
         logger.info(f"  💰 Monto: ${monto} COP")
         
         # TODO: INTEGRACIÓN FUTURA CON NEQUI
-        # =====================================
         # qr_code = generar_qr_nequi(monto, sender_id)
         # enviar_qr_por_whatsapp(sender_id, qr_code)
         # guardar_transaccion_pendiente(sender_id, monto)
         
-        # Por ahora, mensaje manual
         mensaje = (
             "Para finalizar, el valor del manifiesto es de $8.000 pesos.\n\n"
             "💳 Por favor realiza el pago a la siguiente cuenta Nequi:\n"
@@ -75,7 +63,6 @@ class ActionSolicitarPago(Action):
         
         dispatcher.utter_message(text=mensaje)
         
-        # Marcar que hay un pago pendiente
         return [
             SlotSet("pago_pendiente", True),
             SlotSet("monto_total", monto)
@@ -86,14 +73,8 @@ class ActionConfirmarPago(Action):
     """
     Acción para confirmar que se recibió el pago del cliente.
     
-    FLUJO FUTURO:
-    - Esta acción se llamará automáticamente cuando el webhook de Nequi 
-      confirme el pago exitoso
-    - No dependerá de confirmación manual del cliente
-    
-    FLUJO ACTUAL (DUMMY):
-    - Cliente confirma manualmente con mensaje
-    - Se marca como pagado y se procede a generar documento
+    FLUJO FUTURO: Se activa automáticamente por webhook
+    FLUJO ACTUAL: Cliente confirma manualmente
     """
     
     def name(self) -> Text:
@@ -113,11 +94,9 @@ class ActionConfirmarPago(Action):
         logger.info(f"  💰 Monto: ${monto} COP")
         
         # TODO: INTEGRACIÓN FUTURA
-        # =====================================
         # validar_pago_en_db(sender_id, monto)
         # marcar_transaccion_como_pagada(sender_id)
         
-        # Mensaje de confirmación
         mensaje = (
             "¡Perfecto! He recibido tu comprobante de pago. ✅\n\n"
             "Ya puedo proceder con la generación de tu manifiesto.\n"
@@ -126,7 +105,6 @@ class ActionConfirmarPago(Action):
         
         dispatcher.utter_message(text=mensaje)
         
-        # Limpiar el estado de pago pendiente
         return [
             SlotSet("pago_pendiente", False),
             SlotSet("monto_total", None)
@@ -136,11 +114,6 @@ class ActionConfirmarPago(Action):
 class ActionGenerarManifiesto(Action):
     """
     Acción para generar el manifiesto usando Playwright.
-    
-    Esta acción se ejecutará automáticamente después de:
-    1. Recibir todos los datos del formulario
-    2. Confirmar el pago (vía webhook en el futuro)
-    
     Llama al bot de Playwright para automatizar la generación del documento.
     """
     
@@ -154,7 +127,6 @@ class ActionGenerarManifiesto(Action):
         domain: Dict[Text, Any],
     ) -> List[EventType]:
         
-        # Obtener todos los datos del formulario
         datos_manifiesto = {
             "flete": tracker.get_slot("flete"),
             "descripcion": tracker.get_slot("descripcion"),
@@ -173,30 +145,13 @@ class ActionGenerarManifiesto(Action):
         
         try:
             # TODO: LLAMADA A PLAYWRIGHT
-            # =====================================
             # playwright_url = "http://playwright:3000/generar-manifiesto"
-            # response = requests.post(
-            #     playwright_url,
-            #     json=datos_manifiesto,
-            #     timeout=30
-            # )
-            # 
+            # response = requests.post(playwright_url, json=datos_manifiesto, timeout=30)
             # if response.status_code == 200:
             #     resultado = response.json()
             #     pdf_url = resultado.get("pdf_url")
-            #     
-            #     # Enviar PDF por WhatsApp
             #     enviar_pdf_por_whatsapp(tracker.sender_id, pdf_url)
-            #     
-            #     mensaje = (
-            #         f"✅ ¡Manifiesto generado exitosamente!\n\n"
-            #         f"📄 Tu documento ha sido enviado.\n"
-            #         f"Número de manifiesto: {resultado.get('numero_manifiesto')}"
-            #     )
-            # else:
-            #     mensaje = "❌ Hubo un error al generar el manifiesto. Por favor, intenta nuevamente."
             
-            # Por ahora, simulación
             mensaje = (
                 "✅ ¡Manifiesto generado exitosamente! 📋\n\n"
                 "Tu documento está siendo procesado y te lo enviaré en un momento.\n"
@@ -204,8 +159,6 @@ class ActionGenerarManifiesto(Action):
             )
             
             dispatcher.utter_message(text=mensaje)
-            
-            # Limpiar todos los slots después de generar el manifiesto
             return [AllSlotsReset()]
             
         except Exception as e:
@@ -221,10 +174,7 @@ class ActionGenerarManifiesto(Action):
 
 
 class ActionSubmitManifiesto(Action):
-    """
-    Acción que se ejecuta cuando se completa el formulario de manifiesto.
-    Muestra resumen de datos al cliente antes de solicitar pago.
-    """
+    """Acción que se ejecuta cuando se completa el formulario de manifiesto."""
     
     def name(self) -> Text:
         return "action_submit_manifiesto"
@@ -236,7 +186,6 @@ class ActionSubmitManifiesto(Action):
         domain: Dict[Text, Any],
     ) -> List[EventType]:
         
-        # Obtener los datos del formulario
         flete = tracker.get_slot("flete")
         descripcion = tracker.get_slot("descripcion")
         peso = tracker.get_slot("peso")
@@ -247,7 +196,6 @@ class ActionSubmitManifiesto(Action):
         origen = tracker.get_slot("origen")
         destino = tracker.get_slot("destino")
         
-        # Log para debug
         logger.info(f"📋 Resumen de manifiesto para {tracker.sender_id}:")
         logger.info(f"  💰 Flete: {flete}")
         logger.info(f"  📦 Descripción: {descripcion}")
@@ -255,13 +203,11 @@ class ActionSubmitManifiesto(Action):
         logger.info(f"  📅 Cargue: {fecha_cargue} | Descargue: {fecha_descargue}")
         logger.info(f"  📍 Ruta: {origen} → {destino}")
         
-        # Formatear flete para visualización
         try:
             flete_formateado = f"${int(flete):,}".replace(",", ".")
         except:
             flete_formateado = f"${flete}"
         
-        # Mensaje de confirmación con tono profesional
         mensaje = (
             f"Excelente, he recibido toda la información para tu manifiesto:\n\n"
             f"📍 *Ruta:* {origen} → {destino}\n"
@@ -276,9 +222,6 @@ class ActionSubmitManifiesto(Action):
         )
         
         dispatcher.utter_message(text=mensaje)
-        
-        # NO limpiamos los slots aquí porque los necesitaremos después del pago
-        # para generar el manifiesto con Playwright
         return []
 
 
@@ -299,12 +242,9 @@ class ValidateManifiestoForm(FormValidationAction):
         if slot_value is None:
             return {"flete": None}
         
-        # Limpiar el valor (remover símbolos)
         clean_value = str(slot_value).replace("$", "").replace(",", "").replace(".", "").replace("'", "").strip()
         
-        # Verificar si es numérico
         if clean_value.isdigit():
-            # Formatear con separadores de miles para mejor legibilidad
             formatted = f"{int(clean_value):,}".replace(",", ".")
             dispatcher.utter_message(text=f"✅ Flete registrado: ${formatted}")
             return {"flete": clean_value}
@@ -326,15 +266,12 @@ class ValidateManifiestoForm(FormValidationAction):
         if slot_value is None:
             return {"peso": None}
         
-        # Aceptar formato con "kg", "toneladas", "kilos" o solo números
         clean_value = str(slot_value).lower()
         
-        # Remover palabras comunes pero mantener el valor
         for word in ["kg", "kilos", "kilogramos", "toneladas", "ton", "t"]:
             clean_value = clean_value.replace(word, "").strip()
         
         try:
-            # Verificar si es numérico (puede tener decimales)
             peso_num = float(clean_value.replace(",", "."))
             dispatcher.utter_message(text=f"✅ Peso registrado: {slot_value}")
             return {"peso": slot_value}

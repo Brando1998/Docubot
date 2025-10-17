@@ -161,6 +161,8 @@ nlu:
     - te agradezco mucho
     - muy agradecido
     - excelente gracias
+  
+- intent: informar_datos
   examples: |
     - flete: 150000, descripción: cajas de herramientas, peso: 500 kg
     - El flete es $120.000, llevo electrodomésticos que pesan 250kg

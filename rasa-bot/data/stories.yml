@@ -1,7 +1,8 @@
 version: "3.1"
 
 stories:
-- story: Flujo completo de manifiesto con pago y generación
+# Historia principal: flujo completo desde saludo hasta pago
+- story: Flujo completo con saludo
   steps:
   - intent: greet
   - action: utter_greet
@@ -19,7 +20,8 @@ stories:
   - intent: goodbye
   - action: utter_goodbye
 
-- story: Solicitud directa de manifiesto con pago y generación
+# Historia directa: sin saludo, directo al manifiesto
+- story: Solicitud directa de manifiesto
   steps:
   - intent: solicitar_manifiesto
   - action: manifiesto_form
@@ -30,8 +32,11 @@ stories:
   - intent: confirmar_pago
   - action: action_confirmar_pago
   - action: action_generar_manifiesto
+  - intent: agradecer
+  - action: utter_agradecer
 
-- story: Usuario consulta sobre pago primero
+# Cliente pregunta primero cuánto cuesta
+- story: Consulta de pago antes de solicitar
   steps:
   - intent: greet
   - action: utter_greet
@@ -39,8 +44,13 @@ stories:
   - action: action_solicitar_pago
   - intent: solicitar_manifiesto
   - action: manifiesto_form
+  - active_loop: manifiesto_form
+  - active_loop: null
+  - action: action_submit_manifiesto
+  - action: action_solicitar_pago
 
-- story: Usuario proporciona datos durante formulario
+# Usuario proporciona datos extra durante el formulario
+- story: Usuario da información adicional durante formulario
   steps:
   - intent: solicitar_manifiesto
   - action: manifiesto_form
@@ -50,8 +60,12 @@ stories:
   - active_loop: null
   - action: action_submit_manifiesto
   - action: action_solicitar_pago
+  - intent: confirmar_pago
+  - action: action_confirmar_pago
+  - action: action_generar_manifiesto
 
-- story: Saludo y solicitud directa
+# Solo saludo y después solicita manifiesto
+- story: Saludo simple y luego manifiesto
   steps:
   - intent: greet
   - action: utter_greet
@@ -59,14 +73,16 @@ stories:
   - action: manifiesto_form
   - active_loop: manifiesto_form
 
-- story: Cliente agradece después del servicio
+# Cliente agradece al final
+- story: Agradecimiento y despedida
   steps:
   - intent: agradecer
   - action: utter_agradecer
   - intent: goodbye
   - action: utter_goodbye
 
-- story: Flujo con consulta de pago después de datos
+# Cliente pregunta cuánto cuesta después de dar datos
+- story: Consulta de pago después del formulario
   steps:
   - intent: solicitar_manifiesto
   - action: manifiesto_form
@@ -78,10 +94,3 @@ stories:
   - intent: confirmar_pago
   - action: action_confirmar_pago
   - action: action_generar_manifiesto
-
-- story: Usuario paga sin solicitud previa
-  steps:
-  - intent: confirmar_pago
-  - action: action_confirmar_pago
-  - intent: solicitar_manifiesto
-  - action: manifiesto_form
