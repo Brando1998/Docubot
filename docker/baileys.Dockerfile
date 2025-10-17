@@ -2,21 +2,14 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copiar archivos de configuración
+# Copiar package.json y package-lock.json
 COPY package*.json ./
-COPY tsconfig.json ./
 
-# Instalar TODAS las dependencias (necesarias para compilar)
-RUN npm ci
+# Instalar solo dependencias de producción (tsx ahora está incluido)
+RUN npm ci --only=production
 
 # Copiar el código fuente
 COPY . .
-
-# Compilar TypeScript a JavaScript
-RUN npm run build
-
-# Eliminar devDependencies para reducir tamaño
-RUN npm prune --production
 
 # Crear directorios necesarios
 RUN mkdir -p auth src/sessions
@@ -32,5 +25,5 @@ USER nodejs
 # Exponer puerto
 EXPOSE 3000
 
-# Comando de inicio (ahora ejecuta JS compilado)
+# Comando de inicio
 CMD ["npm", "start"]
