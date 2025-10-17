@@ -72,7 +72,6 @@ htmlcov/
 dmypy.json
 venv/
 ENV/
-env/
 .rasa/cache
 .rasa/models
 models/*.tar.gz

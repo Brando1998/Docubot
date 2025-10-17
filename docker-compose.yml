@@ -93,14 +93,15 @@ services:
     build:
       context: ./vue-dashboard
       dockerfile: ../docker/vue.Dockerfile
+      args:
+        # 🔥 Pasa la variable en tiempo de BUILD
+        VITE_API_URL: ${VITE_API_URL:-http://api:8080}
     container_name: docubot-vue
     depends_on:
       api:
         condition: service_healthy
     ports:
       - "3002:3002"
-    env_file:
-      - ./env/dev/vue.env
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health"]
