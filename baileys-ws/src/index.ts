@@ -258,7 +258,8 @@ app.get('/sessions/:sessionId/chats', async (req, res) => {
         }
 
         // Obtener chats desde WhatsApp
-        const chats = await session.socket.store?.chats || [];
+        const socketWithStore = session.socket as any;
+        const chats = socketWithStore.store?.chats || [];
 
         // Formatear respuesta
         const formattedChats = chats.map((chat: any) => ({
@@ -310,7 +311,8 @@ app.get('/sessions/:sessionId/chats/:chatId/messages', async (req, res) => {
         }
 
         // Obtener mensajes del chat
-        const messages = await session.socket.store?.messages?.[chatId] || [];
+        const socketWithStore = session.socket as any;
+        const messages = socketWithStore.store?.messages?.[chatId] || [];
         const recentMessages = Object.values(messages)
             .sort((a: any, b: any) => (b.messageTimestamp || 0) - (a.messageTimestamp || 0))
             .slice(0, limit);
