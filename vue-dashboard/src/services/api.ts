@@ -2,7 +2,7 @@ import axios from "axios";
 import { useAuth } from "../composables/useAuth";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8080",
+  baseURL: "/api",
 });
 
 api.interceptors.request.use(
