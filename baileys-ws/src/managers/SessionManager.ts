@@ -167,7 +167,7 @@ export class SessionManager {
                 // 🔥 CONECTAR AL BACKEND WEBSOCKET AQUÍ
                 try {
                     console.log(`🔌 [${sessionId}] Conectando al backend WebSocket...`);
-                    session.backendWS = await connectToBackendWS(session.status.number, sessionId);
+                    session.backendWS = await connectToBackendWS(session.status.number, sessionId); 
                     console.log(`✅ [${sessionId}] Conectado al backend WebSocket`);
                 } catch (error) {
                     console.error(`❌ [${sessionId}] Error conectando al backend:`, error);
