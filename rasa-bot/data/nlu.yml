@@ -178,12 +178,12 @@ nlu:
 
 - intent: corregir_datos
   examples: |
-    - el origen era [Bogotá]{origen} no Cali
-    - la placa es [ABC123]{tarjeta}
-    - cambiar el peso a [15]{peso} toneladas
-    - rectificar el flete a [500000]{flete}
-    - mejor que sea [Medellín]{destino}
-    - el conductor es [Juan Pérez]{licencia}
+    - el origen era Bogotá no Cali
+    - la placa es ABC123
+    - cambiar el peso a 15 toneladas
+    - rectificar el flete a 500000
+    - mejor que sea Medellín
+    - el conductor es Juan Pérez
 
 - regex: flete
   examples: |
