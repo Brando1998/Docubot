@@ -3,36 +3,34 @@ import { makeWASocket, fetchLatestBaileysVersion, DisconnectReason } from "@whis
 import type { WASocket } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import P from "pino";
-import qrcode from "qrcode-terminal";
 import QRCode from "qrcode";
 import { getAuthState, clearAuthState } from "../sessions/auth.js";
-import type { SessionData, SessionStatus, SessionConfig } from "../types/session.types.js";
-import { DEFAULT_SESSION_CONFIG } from "../types/session.types.js";
+import type { SessionData, SessionConfig, SessionStatus } from "../types/session.types.js";
+import { connectToBackendWS } from "../websocket/client.js";
 
 export class SessionManager {
     private sessions: Map<string, SessionData>;
     private config: SessionConfig;
-    private cleanupInterval: NodeJS.Timeout | null;
+    private cleanupInterval?: NodeJS.Timeout;
 
     constructor(config: Partial<SessionConfig> = {}) {
         this.sessions = new Map();
-        this.config = { ...DEFAULT_SESSION_CONFIG, ...config };
-        this.cleanupInterval = null;
-        this.startCleanupTask();
+        this.config = {
+            maxReconnectAttempts: config.maxReconnectAttempts || 5,
+            sessionTimeout: config.sessionTimeout || 1800000,
+            maxSessions: config.maxSessions || 10,
+            cleanupInterval: config.cleanupInterval || 300000
+        };
+
+        this.startCleanupInterval();
     }
 
-    /**
-     * Inicia una tarea de limpieza periódica para sesiones inactivas
-     */
-    private startCleanupTask(): void {
+    private startCleanupInterval(): void {
         this.cleanupInterval = setInterval(() => {
             this.cleanupInactiveSessions();
         }, this.config.cleanupInterval);
     }
 
-    /**
-     * Limpia sesiones inactivas basándose en el timeout configurado
-     */
     private cleanupInactiveSessions(): void {
         const now = Date.now();
         const sessionsToRemove: string[] = [];
@@ -40,8 +38,8 @@ export class SessionManager {
         for (const [sessionId, session] of this.sessions.entries()) {
             const inactiveTime = now - session.status.last_activity.getTime();
             
-            if (!session.status.connected && inactiveTime > this.config.sessionTimeout) {
-                console.log(`🧹 Limpiando sesión inactiva: ${sessionId}`);
+            if (inactiveTime > this.config.sessionTimeout && !session.status.connected) {
+                console.log(`🧹 Limpiando sesión inactiva: ${sessionId} (inactiva por ${Math.floor(inactiveTime/1000/60)} minutos)`);
                 sessionsToRemove.push(sessionId);
             }
         }
@@ -51,16 +49,11 @@ export class SessionManager {
         }
     }
 
-    /**
-     * Crea una nueva sesión
-     */
     async createSession(sessionId: string): Promise<SessionData> {
-        // Verificar límite de sesiones
         if (this.sessions.size >= this.config.maxSessions) {
             throw new Error(`Límite de sesiones alcanzado (${this.config.maxSessions})`);
         }
 
-        // Verificar si la sesión ya existe
         if (this.sessions.has(sessionId)) {
             throw new Error(`La sesión ${sessionId} ya existe`);
         }
@@ -94,9 +87,6 @@ export class SessionManager {
         return sessionData;
     }
 
-    /**
-     * Inicia la conexión de WhatsApp para una sesión
-     */
     private async startWhatsAppConnection(sessionId: string): Promise<void> {
         const session = this.sessions.get(sessionId);
         if (!session) {
@@ -134,52 +124,71 @@ export class SessionManager {
         }
     }
 
-    /**
-     * Configura los eventos del socket de WhatsApp
-     */
     private setupSocketEvents(sessionId: string, socket: WASocket, saveCreds: any): void {
         const session = this.sessions.get(sessionId);
         if (!session) return;
 
-        // Evento de actualización de conexión
         socket.ev.on("connection.update", async (update: any) => {
             const { connection, lastDisconnect, qr } = update;
             
             console.log(`📡 [${sessionId}] Connection update:`, { 
                 connection, 
-                hasQR: !!qr,
-                errorCode: lastDisconnect?.error?.output?.statusCode
+                hasQR: !!qr, 
+                errorCode: lastDisconnect?.error?.output?.statusCode 
             });
 
+            // Manejar QR
             if (qr) {
                 session.qrCodeData = qr;
-                qrcode.generate(qr, { small: true });
-                console.log(`📱 [${sessionId}] Nuevo QR generado`);
-
+                session.status.qr_code = qr;
+                
                 try {
-                    const qrImageBase64 = await QRCode.toDataURL(qr);
-                    session.status.qr_code = qr;
-                    session.status.qr_image = qrImageBase64;
+                    const qrImage = await QRCode.toDataURL(qr);
+                    session.status.qr_image = qrImage;
+                    console.log(`📱 [${sessionId}] QR Code generado`);
                 } catch (error) {
-                    console.error(`Error generando QR image para ${sessionId}:`, error);
+                    console.error(`❌ [${sessionId}] Error generando QR image:`, error);
                 }
             }
 
-            if (connection === "open") {
-                console.log(`✅ [${sessionId}] Conexión WhatsApp establecida`);
-                
+            // Manejar conexión establecida
+            if (connection === 'open') {
+                session.status.connected = true;
+                session.status.number = socket.user?.id.split(':')[0] || '';
+                session.status.name = socket.user?.name || '';
                 session.reconnectAttempts = 0;
                 session.status.reconnect_attempts = 0;
-                session.status.connected = true;
-                session.status.number = socket.user?.id || '';
-                session.status.name = socket.user?.name || `Bot ${sessionId}`;
-                session.status.last_activity = new Date();
+                session.qrCodeData = '';
+                session.status.qr_code = '';
+                
+                console.log(`✅ [${sessionId}] Conexión WhatsApp establecida`);
+                console.log(`📱 [${sessionId}] Número: ${session.status.number}`);
+
+                // 🔥 CONECTAR AL BACKEND WEBSOCKET AQUÍ
+                try {
+                    console.log(`🔌 [${sessionId}] Conectando al backend WebSocket...`);
+                    session.backendWS = await connectToBackendWS(session.status.number);
+                    console.log(`✅ [${sessionId}] Conectado al backend WebSocket`);
+                } catch (error) {
+                    console.error(`❌ [${sessionId}] Error conectando al backend:`, error);
+                }
+            }
+
+            // Manejar desconexión
+            if (connection === 'close') {
+                session.status.connected = false;
                 session.qrCodeData = '';
                 
-            } else if (connection === "close") {
-                console.log(`❌ [${sessionId}] Conexión WhatsApp cerrada`);
-                session.status.connected = false;
-                session.status.last_activity = new Date();
+                // Cerrar WebSocket del backend
+                if (session.backendWS) {
+                    try {
+                        session.backendWS.close();
+                        session.backendWS = null;
+                        console.log(`🔌 [${sessionId}] WebSocket del backend cerrado`);
+                    } catch (error) {
+                        console.error(`❌ [${sessionId}] Error cerrando backend WS:`, error);
+                    }
+                }
 
                 const shouldReconnect = lastDisconnect?.error ? 
                     await this.handleDisconnection(sessionId, lastDisconnect.error) : false;
@@ -196,16 +205,13 @@ export class SessionManager {
             }
         });
 
-        // Guardar credenciales
         socket.ev.on("creds.update", saveCreds);
 
-        // Manejar mensajes entrantes
         socket.ev.on("messages.upsert", async ({ messages }: any) => {
             for (const msg of messages) {
                 if (!msg.message) continue;
                 const from = msg.key.remoteJid;
 
-                // Determinar el tipo de mensaje
                 let messageType = 'text';
                 let text = '';
 
@@ -234,22 +240,22 @@ export class SessionManager {
                 console.log(`📨 [${sessionId}] Mensaje de ${from}: ${text} (tipo: ${messageType})`);
                 session.status.last_activity = new Date();
 
-                // Enviar al backend si hay conexión WebSocket
+                // 🔥 ENVIAR AL BACKEND
                 if (session.backendWS && session.backendWS.readyState === 1) {
                     try {
                         const { handleIncomingMessage } = await import('../handlers/messageHandler.js');
                         await handleIncomingMessage(from, text, session.status.number, session.backendWS, messageType);
+                        console.log(`✅ [${sessionId}] Mensaje enviado al backend`);
                     } catch (error) {
-                        console.error(`Error enviando mensaje al backend: ${error}`);
+                        console.error(`❌ [${sessionId}] Error enviando mensaje al backend:`, error);
                     }
+                } else {
+                    console.warn(`⚠️ [${sessionId}] Backend WebSocket no disponible (readyState: ${session.backendWS?.readyState || 'null'})`);
                 }
             }
         });
     }
 
-    /**
-     * Maneja la desconexión de una sesión
-     */
     private async handleDisconnection(sessionId: string, error: any): Promise<boolean> {
         const session = this.sessions.get(sessionId);
         if (!session) return false;
@@ -293,31 +299,19 @@ export class SessionManager {
         }
     }
 
-    /**
-     * Obtiene una sesión por ID
-     */
     getSession(sessionId: string): SessionData | undefined {
         return this.sessions.get(sessionId);
     }
 
-    /**
-     * Obtiene todas las sesiones
-     */
     getAllSessions(): Map<string, SessionData> {
         return this.sessions;
     }
 
-    /**
-     * Obtiene el estado de una sesión
-     */
     getSessionStatus(sessionId: string): SessionStatus | undefined {
         const session = this.sessions.get(sessionId);
         return session?.status;
     }
 
-    /**
-     * Envía un mensaje desde una sesión específica
-     */
     async sendMessage(sessionId: string, number: string, message: string): Promise<void> {
         const session = this.sessions.get(sessionId);
         
@@ -336,9 +330,6 @@ export class SessionManager {
         console.log(`✅ [${sessionId}] Mensaje enviado a ${number}`);
     }
 
-    /**
-     * Reinicia una sesión
-     */
     async restartSession(sessionId: string): Promise<void> {
         const session = this.sessions.get(sessionId);
         
@@ -348,7 +339,6 @@ export class SessionManager {
 
         console.log(`🔄 [${sessionId}] Reiniciando sesión...`);
 
-        // Cerrar socket actual
         if (session.socket) {
             try {
                 session.socket.end(undefined);
@@ -357,20 +347,24 @@ export class SessionManager {
             }
         }
 
-        // Reset estado
+        if (session.backendWS) {
+            try {
+                session.backendWS.close();
+                session.backendWS = null;
+            } catch (e) {
+                console.log(`[${sessionId}] Backend WS ya cerrado`);
+            }
+        }
+
         session.reconnectAttempts = 0;
         session.qrCodeData = '';
         session.status.qr_code = '';
         session.status.qr_image = '';
         session.status.reconnect_attempts = 0;
 
-        // Reiniciar conexión
         await this.startWhatsAppConnection(sessionId);
     }
 
-    /**
-     * Elimina una sesión
-     */
     async removeSession(sessionId: string): Promise<void> {
         const session = this.sessions.get(sessionId);
         
@@ -382,7 +376,6 @@ export class SessionManager {
         
         session.isShuttingDown = true;
 
-        // Cerrar socket
         if (session.socket) {
             try {
                 await session.socket.logout();
@@ -392,7 +385,6 @@ export class SessionManager {
             session.socket.end(undefined);
         }
 
-        // Cerrar WebSocket del backend si existe
         if (session.backendWS) {
             try {
                 session.backendWS.close();
@@ -401,18 +393,12 @@ export class SessionManager {
             }
         }
 
-        // Limpiar credenciales
         await clearAuthState(sessionId);
-
-        // Eliminar del mapa
         this.sessions.delete(sessionId);
         
         console.log(`✅ [${sessionId}] Sesión eliminada`);
     }
 
-    /**
-     * Limpia todas las sesiones
-     */
     async cleanup(): Promise<void> {
         console.log('🧹 Limpiando todas las sesiones...');
         
@@ -429,9 +415,6 @@ export class SessionManager {
         console.log('✅ Todas las sesiones limpiadas');
     }
 
-    /**
-     * Obtiene estadísticas del gestor de sesiones
-     */
     getStats() {
         const sessions = Array.from(this.sessions.values());
         
@@ -441,6 +424,7 @@ export class SessionManager {
             disconnected_sessions: sessions.filter(s => !s.status.connected).length,
             max_sessions: this.config.maxSessions,
             sessions_with_qr: sessions.filter(s => s.qrCodeData !== '').length,
+            sessions_with_backend: sessions.filter(s => s.backendWS !== null).length,
             memory_usage: process.memoryUsage(),
             uptime: process.uptime()
         };
