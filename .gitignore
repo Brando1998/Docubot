@@ -4,8 +4,6 @@
 .DS_Store
 Thumbs.db
 *.log
-# *.env
-# .env.local
 *.swp
 *.swo
 
@@ -31,6 +29,7 @@ test-results/
 /api/bin/
 /api/obj/
 /api/tmp/
+/api/api
 *.exe
 *.exe~
 *.dll
@@ -78,6 +77,13 @@ models/*.tar.gz
 rasa-venv/
 
 # -------------------------
+# VUE DASHBOARD
+# -------------------------
+vue-dashboard/dist/
+vue-dashboard/dist-ssr/
+vue-dashboard/*.local
+
+# -------------------------
 # DOCKER / CONTAINERS
 # -------------------------
 *.pid
@@ -93,3 +99,8 @@ docker-compose.override.yml
 *.sublime-workspace
 *.sublime-project
 creds.txt
+
+# -------------------------
+# BAILLEYS AUTH FILES
+# -------------------------
+baileys-ws/auth/
