@@ -209,12 +209,9 @@ const {
 // Estado para mensajes de UI
 const uiMessage = ref('')
 const uiMessageType = ref<'success' | 'error'>('success')
-const detailedStatus = ref<any>(null) // 🆕 Para mostrar estado detallado
+const detailedStatus = ref<any>(null)
 
-// Estado para mensajes de UI
-const message = ref('')
-const messageType = ref<'success' | 'error'>('success')
-const detailedStatus = ref<any>(null) // 🆕 Para mostrar estado detallado
+// Estado para mensajes de UI (eliminado - ya no se usa)
 
 // Estados computados
 const statusText = computed(() => {

@@ -461,7 +461,6 @@ const showMessage = (text: string, type: 'success' | 'error' = 'success') => {
 
 const clearMessage = () => {
   message.value = ''
-  clearError()
 }
 
 const formatChatDate = (timestamp?: number) => {
