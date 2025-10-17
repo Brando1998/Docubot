@@ -202,7 +202,6 @@ const {
   restartSession,      // 🆕 Nuevo método
   clearSession,        // 🆕 Nuevo método
   getDetailedStatus,   // 🆕 Nuevo método
-  clearError,
   clearError
 } = useWhatsApp()
 
@@ -210,8 +209,6 @@ const {
 const uiMessage = ref('')
 const uiMessageType = ref<'success' | 'error'>('success')
 const detailedStatus = ref<any>(null)
-
-// Estado para mensajes de UI (eliminado - ya no se usa)
 
 // Estados computados
 const statusText = computed(() => {
