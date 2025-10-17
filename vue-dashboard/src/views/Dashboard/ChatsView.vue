@@ -236,17 +236,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useWhatsApp } from '@/composables/useWhatsApp'
 
 // Usar el composable con métodos de chats
 const {
   isLoading,
-  error,
   getChats,
   getChatMessages,
   sendChatMessage,
-  clearError,
 } = useWhatsApp()
 
 // Estado para gestión de chats

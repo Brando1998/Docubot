@@ -136,10 +136,10 @@
     </div>
     
     <!-- Mensajes de error/éxito -->
-    <div v-if="message" :class="messageClasses" class="rounded-lg p-4 mb-4">
+    <div v-if="uiMessage" :class="messageClasses" class="rounded-lg p-4 mb-4">
       <div class="flex">
         <div class="flex-shrink-0">
-          <svg v-if="messageType === 'success'" class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+          <svg v-if="uiMessageType === 'success'" class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
           </svg>
           <svg v-else class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
@@ -147,7 +147,7 @@
           </svg>
         </div>
         <div class="ml-3">
-          <p class="text-sm font-medium">{{ message }}</p>
+          <p class="text-sm font-medium">{{ uiMessage }}</p>
         </div>
       </div>
     </div>
@@ -187,7 +187,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useWhatsApp } from '@/composables/useWhatsApp'
 
 // Usar el composable con todos los métodos
@@ -207,8 +207,8 @@ const {
 } = useWhatsApp()
 
 // Estado para mensajes de UI
-const message = ref('')
-const messageType = ref<'success' | 'error'>('success')
+const uiMessage = ref('')
+const uiMessageType = ref<'success' | 'error'>('success')
 const detailedStatus = ref<any>(null) // 🆕 Para mostrar estado detallado
 
 // Estado para mensajes de UI
@@ -250,7 +250,7 @@ const statusDotClasses = computed(() => {
 
 const messageClasses = computed(() => {
   const base = 'border'
-  if (messageType.value === 'success') return `${base} bg-green-50 border-green-200`
+  if (uiMessageType.value === 'success') return `${base} bg-green-50 border-green-200`
   return `${base} bg-red-50 border-red-200`
 })
 
@@ -321,13 +321,13 @@ const handleGetDetailedStatus = async () => {
 
 // Utilidades
 const showMessage = (text: string, type: 'success' | 'error' = 'success') => {
-  message.value = text
-  messageType.value = type
+  uiMessage.value = text
+  uiMessageType.value = type
   setTimeout(clearMessage, 5000)
 }
 
 const clearMessage = () => {
-  message.value = ''
+  uiMessage.value = ''
   clearError()
 }
 
@@ -347,33 +347,6 @@ const formatDate = (dateString: string) => {
   }
 }
 
-const formatChatDate = (timestamp?: number) => {
-  if (!timestamp) return ''
-  try {
-    const date = new Date(timestamp * 1000)
-    return date.toLocaleString('es-CO', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  } catch (error) {
-    return ''
-  }
-}
-
-const formatMessageDate = (timestamp?: number) => {
-  if (!timestamp) return ''
-  try {
-    const date = new Date(timestamp * 1000)
-    return date.toLocaleString('es-CO', {
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  } catch (error) {
-    return ''
-  }
-}
 
 // Polling para actualizar estado automáticamente
 let statusInterval: number | null = null
