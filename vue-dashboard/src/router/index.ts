@@ -30,6 +30,12 @@ const dashboardChildren = [
     component: () => import("@/views/Dashboard/WhatsAppView.vue"),
     meta: { requiresAuth: true },
   },
+  {
+    path: "chats",
+    name: "DashboardChats",
+    component: () => import("@/views/Dashboard/ChatsView.vue"),
+    meta: { requiresAuth: true },
+  },
 ];
 
 const routes = [
