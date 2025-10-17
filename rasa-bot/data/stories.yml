@@ -94,3 +94,14 @@ stories:
   - intent: confirmar_pago
   - action: action_confirmar_pago
   - action: action_generar_manifiesto
+
+- story: Usuario corrige datos durante formulario
+  steps:
+  - intent: solicitar_manifiesto
+  - action: manifiesto_form
+  - active_loop: manifiesto_form
+  - intent: corregir_datos
+  - action: action_corregir_campo
+  - action: manifiesto_form
+  - active_loop: null
+  - action: action_submit_manifiesto

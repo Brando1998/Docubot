@@ -54,3 +54,11 @@ rules:
   - intent: deny
   - action: utter_fallback
   - action: manifiesto_form
+
+- rule: Permitir corrección durante formulario
+  condition:
+  - active_loop: manifiesto_form
+  steps:
+  - intent: corregir_datos
+  - action: action_corregir_campo
+  - action: manifiesto_form

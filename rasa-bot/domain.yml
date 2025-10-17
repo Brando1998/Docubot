@@ -11,6 +11,7 @@ intents:
   - confirmar_pago
   - agradecer
   - nlu_fallback
+  - corregir_datos
 
 entities:
   - flete
@@ -148,7 +149,7 @@ responses:
     - text: "Con mucho gusto. Si necesitas algo más, no dudes en escribirnos. ¡Que estés muy bien! 👋"
 
   utter_ask_flete:
-    - text: "Por favor, indícame el valor del flete para este transporte.\n\nPuedes escribirlo así: $150.000 o 150000"
+    - text: "Perfecto, con gusto te ayudo a generar el manifiesto. 📋\n\nVoy a necesitar la siguiente información:\n• Valor del flete\n• Descripción de la carga\n• Peso total\n• Fechas de cargue y descargue\n• Datos del vehículo y conductor\n• Origen y destino\n\nComencemos:\n\n💰 Por favor, indícame el valor del flete.\nEjemplo: $150.000 o 150000"
 
   utter_ask_descripcion:
     - text: "Perfecto. Ahora necesito que me indiques la descripción de la carga.\n\n¿Qué tipo de mercancía transportarás?\nEjemplo: Lácteos, frijol y varios, electrodomésticos, etc."
@@ -190,6 +191,7 @@ actions:
   - action_confirmar_pago
   - action_generar_manifiesto
   - validate_manifiesto_form
+  - action_corregir_campo
 
 forms:
   manifiesto_form:

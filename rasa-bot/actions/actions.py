@@ -209,16 +209,16 @@ class ActionSubmitManifiesto(Action):
             flete_formateado = f"${flete}"
         
         mensaje = (
-            f"Excelente, he recibido toda la información para tu manifiesto:\n\n"
-            f"📍 *Ruta:* {origen} → {destino}\n"
-            f"📦 *Carga:* {descripcion}\n"
-            f"⚖️ *Peso:* {peso}\n"
-            f"💰 *Flete:* {flete_formateado}\n"
-            f"📅 *Cargue:* {fecha_cargue}\n"
-            f"📅 *Descargue:* {fecha_descargue}\n"
-            f"🚗 *Vehículo:* {tarjeta}\n"
-            f"🪪 *Conductor:* {licencia}\n\n"
-            f"✅ Todo listo para procesar tu solicitud."
+            f"📋 *Resumen de tu manifiesto:*\n\n"
+            f"📍 Ruta: {origen} → {destino}\n"
+            f"📦 Carga: {descripcion} ({peso})\n"
+            f"💰 Flete: {flete_formateado}\n"
+            f"📅 Cargue: {fecha_cargue} | Descargue: {fecha_descargue}\n"
+            f"🚗 Placa: {tarjeta}\n"
+            f"🪪 Conductor: {licencia}\n\n"
+            f"✅ ¿Todo correcto? Responde:\n"
+            f"• 'Sí' para continuar al pago\n"
+            f"• 'Corregir [campo]' para modificar (ej: 'corregir placa a XYZ789')"
         )
         
         dispatcher.utter_message(text=mensaje)
@@ -321,18 +321,33 @@ class ValidateManifiestoForm(FormValidationAction):
             return {"descripcion": slot_value}
         return {"descripcion": None}
 
-    def validate_fecha_cargue(
-        self,
-        slot_value: Any,
-        dispatcher: CollectingDispatcher,
-        tracker: Tracker,
-        domain: DomainDict,
-    ) -> Dict[Text, Any]:
-        """Valida el slot de fecha de cargue."""
-        if slot_value and len(str(slot_value).strip()) > 0:
-            dispatcher.utter_message(text=f"✅ Fecha de cargue registrada: {slot_value}")
-            return {"fecha_cargue": slot_value}
+    def validate_fecha_cargue(self, slot_value, dispatcher, tracker, domain):
+        """Valida formato de fecha"""
+        if slot_value:
+            from datetime import datetime
+            try:
+                # Intentar varios formatos
+                for fmt in ["%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d", "hoy", "mañana"]:
+                    if fmt in ["hoy", "mañana"]:
+                        if slot_value.lower() == fmt:
+                            fecha = datetime.now() if fmt == "hoy" else datetime.now() + timedelta(days=1)
+                            fecha_str = fecha.strftime("%d/%m/%Y")
+                            dispatcher.utter_message(text=f"✅ Fecha registrada: {fecha_str}")
+                            return {"fecha_cargue": fecha_str}
+                    else:
+                        try:
+                            fecha = datetime.strptime(str(slot_value), fmt)
+                            dispatcher.utter_message(text=f"✅ Fecha registrada: {fecha.strftime('%d/%m/%Y')}")
+                            return {"fecha_cargue": fecha.strftime("%d/%m/%Y")}
+                        except:
+                            continue
+                
+                dispatcher.utter_message(text="⚠️ Formato de fecha no válido. Usa: DD/MM/AAAA o 'hoy'/'mañana'")
+                return {"fecha_cargue": None}
+            except:
+                return {"fecha_cargue": None}
         return {"fecha_cargue": None}
+
 
     def validate_fecha_descargue(
         self,
@@ -347,17 +362,20 @@ class ValidateManifiestoForm(FormValidationAction):
             return {"fecha_descargue": slot_value}
         return {"fecha_descargue": None}
 
-    def validate_tarjeta(
-        self,
-        slot_value: Any,
-        dispatcher: CollectingDispatcher,
-        tracker: Tracker,
-        domain: DomainDict,
-    ) -> Dict[Text, Any]:
-        """Valida el slot de tarjeta de propiedad."""
-        if slot_value and len(str(slot_value).strip()) > 0:
-            dispatcher.utter_message(text="✅ Información del vehículo recibida")
-            return {"tarjeta": slot_value}
+    def validate_tarjeta(self, slot_value, dispatcher, tracker, domain):
+        """Valida formato de placa colombiana"""
+        if slot_value:
+            # Formato: ABC123 o ABC12D
+            import re
+            pattern = r'^[A-Z]{3}\d{2}[A-Z0-9]$'
+            clean = str(slot_value).upper().replace("-", "").replace(" ", "")
+            
+            if re.match(pattern, clean):
+                dispatcher.utter_message(text=f"✅ Placa {clean} registrada")
+                return {"tarjeta": clean}
+            else:
+                dispatcher.utter_message(text="⚠️ Formato de placa inválido. Ejemplo: ABC123")
+                return {"tarjeta": None}
         return {"tarjeta": None}
 
     def validate_licencia(
@@ -372,3 +390,26 @@ class ValidateManifiestoForm(FormValidationAction):
             dispatcher.utter_message(text="✅ Información del conductor recibida")
             return {"licencia": slot_value}
         return {"licencia": None}
+
+class ActionCorregirCampo(Action):
+    def name(self) -> Text:
+        return "action_corregir_campo"
+
+    def run(self, dispatcher, tracker, domain):
+        # Extraer entidades del mensaje
+        entities = tracker.latest_message.get("entities", [])
+        
+        slots_actualizados = []
+        for entity in entities:
+            entity_type = entity["entity"]
+            entity_value = entity["value"]
+            
+            if entity_type in ["flete", "descripcion", "peso", "fecha_cargue", 
+                               "fecha_descargue", "tarjeta", "licencia", "origen", "destino"]:
+                slots_actualizados.append(SlotSet(entity_type, entity_value))
+                dispatcher.utter_message(text=f"✅ {entity_type.capitalize()} actualizado a: {entity_value}")
+        
+        if not slots_actualizados:
+            dispatcher.utter_message(text="¿Qué campo deseas corregir? (origen, destino, placa, conductor, etc.)")
+        
+        return slots_actualizados
