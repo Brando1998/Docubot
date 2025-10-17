@@ -167,8 +167,25 @@ export class SessionManager {
                 // 🔥 CONECTAR AL BACKEND WEBSOCKET AQUÍ
                 try {
                     console.log(`🔌 [${sessionId}] Conectando al backend WebSocket...`);
-                    session.backendWS = await connectToBackendWS(session.status.number, sessionId); 
+                    session.backendWS = await connectToBackendWS(session.status.number, sessionId);
                     console.log(`✅ [${sessionId}] Conectado al backend WebSocket`);
+                    
+                    // 🔥 ESCUCHAR MENSAJES DEL BACKEND
+                    session.backendWS.on('message', async (data: any) => {
+                        try {
+                            const message = JSON.parse(data.toString());
+                            console.log(`📩 [${sessionId}] Mensaje del backend:`, message);
+                            
+                            // Enviar mensaje por WhatsApp
+                            if (message.to && message.message && session.socket) {
+                                const jid = message.to.includes('@') ? message.to : `${message.to}@s.whatsapp.net`;
+                                await session.socket.sendMessage(jid, { text: message.message });
+                                console.log(`✅ [${sessionId}] Mensaje enviado a ${message.to}`);
+                            }
+                        } catch (error) {
+                            console.error(`❌ [${sessionId}] Error procesando mensaje del backend:`, error);
+                        }
+                    });
                 } catch (error) {
                     console.error(`❌ [${sessionId}] Error conectando al backend:`, error);
                 }
