@@ -27,7 +27,7 @@ type IncomingMessageRequest struct {
 	Phone       string `json:"phone"`
 	Message     string `json:"message"`
 	BotNumber   string `json:"botNumber"`
-	SessionID   string `json:"sessionId,omitempty"` // ID de la sesión para múltiples bots
+	SessionID   string `json:"sessionId,omitempty"`   // ID de la sesión para múltiples bots
 	MessageType string `json:"messageType,omitempty"` // Tipo de mensaje (text, audio, image, etc.)
 }
 
@@ -111,6 +111,10 @@ func HandleWebSocket(c *gin.Context, hub *WebSocketHub, upgrader websocket.Upgra
 
 // processIncomingMessage procesa los mensajes entrantes
 func processIncomingMessage(msg IncomingMessageRequest, hub *WebSocketHub) error {
+	if strings.Contains(msg.Phone, "@g.us") {
+		log.Printf("⚠️ Mensaje de grupo ignorado: %s", msg.Phone)
+		return nil
+	}
 	// Asegurar formato consistente del botNumber
 	sessionId := msg.SessionID
 	if sessionId == "" {
