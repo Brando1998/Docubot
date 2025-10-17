@@ -30,6 +30,7 @@ test-results/
 /api/obj/
 /api/tmp/
 /api/api
+/bin/
 *.exe
 *.exe~
 *.dll
