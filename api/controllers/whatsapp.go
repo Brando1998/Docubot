@@ -8,8 +8,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/brando1998/docubot-api/models"
 	"github.com/gin-gonic/gin"
+
+	"github.com/brando1998/docubot-api/models"
 )
 
 // WhatsAppQRResponse estructura para la respuesta del QR
@@ -145,7 +146,7 @@ func DisconnectWhatsApp(c *gin.Context) {
 	sessionId := c.DefaultQuery("sessionId", "default")
 
 	// URL del servicio Baileys para desconectar
-	baileysURL := fmt.Sprintf("http://baileys:3000/sessions/%s/disconnect", sessionId)
+	baileysURL := fmt.Sprintf("http://baileys:3000/sessions/%s", sessionId)
 
 	// Crear payload con sessionId
 	payload := map[string]string{"sessionId": sessionId}
@@ -207,9 +208,36 @@ func GetSessionStatus(c *gin.Context) {
 	}
 	defer resp.Body.Close()
 
+	// Si la sesión no existe, crear automáticamente
+	if resp.StatusCode == http.StatusNotFound {
+		// Crear la sesión
+		createURL := fmt.Sprintf("http://baileys:3000/sessions/%s", sessionId)
+		createResp, createErr := http.Post(createURL, "application/json", nil)
+		if createErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Error creando sesión",
+				"details": createErr.Error(),
+			})
+			return
+		}
+		createResp.Body.Close()
+
+		// Reintentar obtener estado
+		resp, err = http.Get(baileysURL)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Error conectando después de crear sesión",
+				"details": err.Error(),
+			})
+			return
+		}
+		defer resp.Body.Close()
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Error obteniendo estado de WhatsApp",
+			"error":       "Error obteniendo estado de WhatsApp",
+			"status_code": resp.StatusCode,
 		})
 		return
 	}
