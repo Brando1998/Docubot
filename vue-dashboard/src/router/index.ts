@@ -39,7 +39,7 @@ const dashboardChildren = [
   {
     path: '/bots',
     name: 'BotManagement',
-    component: () => import('../views/BotManagement.vue'), 
+    component: () => import('../views/Dashboard/BotManagement.vue'), 
     meta: { requiresAuth: true },
   }
 ];
