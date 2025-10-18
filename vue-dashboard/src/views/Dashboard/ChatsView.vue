@@ -368,8 +368,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from "vue";
-import { useWhatsApp } from "@/composables/useWhatsApp";
-import { useBots } from '@/composables/useBots'
+import { useWhatsApp } from "../../composables/useWhatsApp";
+import { useBots } from '../../composables/useBots'
 
 // Usar el composable con métodos de chats
 const { isLoading, getChats, getChatMessages, sendChatMessage } = useWhatsApp();
