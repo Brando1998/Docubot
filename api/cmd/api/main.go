@@ -75,7 +75,8 @@ func runMigrations() {
 		&models.Client{},
 		&models.Bot{},
 		&models.WhatsAppSession{},
-		&models.SystemUser{}, // 🔥 NUEVO: Agregar migración del SystemUser
+		&models.SystemUser{},
+		&models.BotInstance{},
 	)
 	if err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)
@@ -88,10 +89,16 @@ func initRepositories() {
 	conversationRepo := repositories.NewConversationRepository(database.MongoClient)
 	clientRepo := repositories.NewClientRepository(database.DB)
 	botRepo := repositories.NewBotRepository(database.DB)
+	botInstanceRepo := repositories.NewBotInstanceRepository(database.DB)
 
 	controllers.SetConversationRepo(conversationRepo)
 	controllers.SetClientRepo(clientRepo)
 	controllers.SetBotRepo(botRepo)
+	controllers.SetBotInstanceRepo(botInstanceRepo)
+
+	if err := controllers.InitDockerManager(); err != nil {
+		log.Fatalf("Failed to initialize Docker manager: %v", err)
+	}
 }
 
 func getServerPort() string {

@@ -141,6 +141,13 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 		{
 			dashboardGroup.GET("/stats", controllers.GetDashboardStats) // Estadísticas del dashboard
 		}
+
+		instanceGroup := api.Group("/bot-instances")
+		{
+			instanceGroup.POST("", controllers.CreateBotInstance)
+			instanceGroup.GET("", controllers.ListBotInstances)
+			instanceGroup.DELETE("/:id", controllers.DeleteBotInstance)
+		}
 	}
 
 	// =============================================

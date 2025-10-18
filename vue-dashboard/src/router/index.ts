@@ -36,6 +36,12 @@ const dashboardChildren = [
     component: () => import("@/views/Dashboard/ChatsView.vue"),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/bots',
+    name: 'BotManagement',
+    component: () => import('../views/BotManagement.vue'), 
+    meta: { requiresAuth: true },
+  }
 ];
 
 const routes = [

@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 
+	database "github.com/brando1998/docubot-api/databases"
 	"github.com/brando1998/docubot-api/models"
 	"github.com/brando1998/docubot-api/repositories"
 )
@@ -210,7 +211,7 @@ func processIncomingMessage(msg IncomingMessageRequest, hub *WebSocketHub) error
 	// 4. Procesar con Rasa
 	// Usar sender con sessionId para aislamiento de contexto
 	senderWithSession := fmt.Sprintf("%s:%s", sessionId, msg.Phone)
-	rasaResponses, err := sendToRasa(senderWithSession, msg.Message)
+	rasaResponses, err := sendToRasaDynamic(senderWithSession, msg.Message, msg.BotNumber, hub)
 	if err != nil {
 		return fmt.Errorf("rasa processing failed: %w", err)
 	}
@@ -250,10 +251,30 @@ func processIncomingMessage(msg IncomingMessageRequest, hub *WebSocketHub) error
 	return nil
 }
 
-// sendToRasa envía mensajes al servidor Rasa
-func sendToRasa(sender, message string) ([]RasaResponseItem, error) {
-	// Incluir sessionId en el sender para aislamiento de contexto
-	// El sender ahora viene en formato "sessionId:phone" desde processIncomingMessage
+// sendToRasaDynamic envía mensajes al servidor Rasa
+func sendToRasaDynamic(sender, message, botNumber string, hub *WebSocketHub) ([]RasaResponseItem, error) {
+	// Limpiar número de bot
+	cleanBotNumber := strings.Split(botNumber, "@")[0]
+
+	// Buscar si hay una instancia específica para este bot
+	var instance models.BotInstance
+	err := database.GetDB().Where("whatsapp_number = ? AND status = ?", cleanBotNumber, "running").First(&instance).Error
+
+	rasaURL := "http://rasa:5005" // URL por defecto (bot base)
+
+	if err == nil {
+		// Si existe una instancia, usar su puerto
+		rasaURL = fmt.Sprintf("http://localhost:%d", instance.Port)
+		log.Printf("🔀 Enrutando a instancia personalizada: %s (puerto %d)", instance.Name, instance.Port)
+	} else {
+		log.Printf("🔀 Usando bot base (puerto 5005)")
+	}
+
+	return sendToRasa(rasaURL, sender, message)
+}
+
+// sendToRasa envía mensajes al servidor Rasa (versión actualizada con URL dinámica)
+func sendToRasa(rasaURL, sender, message string) ([]RasaResponseItem, error) {
 	payload := map[string]interface{}{
 		"sender":  sender,
 		"message": message,
@@ -264,8 +285,8 @@ func sendToRasa(sender, message string) ([]RasaResponseItem, error) {
 		return nil, fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
-	// req, err := http.NewRequest("POST", "http://localhost:5005/webhooks/rest/webhook", bytes.NewBuffer(body))
-	req, err := http.NewRequest("POST", "http://rasa:5005/webhooks/rest/webhook", bytes.NewBuffer(body))
+	webhookURL := fmt.Sprintf("%s/webhooks/rest/webhook", rasaURL)
+	req, err := http.NewRequest("POST", webhookURL, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
