@@ -227,6 +227,9 @@ onMounted(() => {
 async function loadBots() {
   try {
     await fetchBots()
+    if (error.value) {
+      showMessage(error.value, 'error')
+    }
   } catch (err) {
     showMessage('Error cargando bots', 'error')
   }
