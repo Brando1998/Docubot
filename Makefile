@@ -362,7 +362,12 @@ create-admin: ## Crear usuario administrador (reinicia API para auto-crear)
 
 list-admins: ## Listar usuarios administradores - soporta ENV=dev|prod
 	@echo "📋 Listando usuarios administradores ($(ENV))..."
-	docker compose -f $(COMPOSE_FILE_SELECTED) exec api sh -c "cd /app && go run -c 'database.ConnectPostgres(); db := database.GetDB(); var users []models.SystemUser; db.Where(\"role = ?\", \"admin\").Find(&users); for _, u := range users { fmt.Printf(\"ID: %d | Username: %s | Email: %s | Active: %t\\n\", u.ID, u.Username, u.Email, u.IsActive) }'"
+	@echo "🔍 Verificando si el contenedor API está ejecutándose..."
+	@docker compose -f $(COMPOSE_FILE_SELECTED) ps api | grep -q "Up" || (echo "❌ El contenedor API no está ejecutándose" && exit 1)
+	@echo "🐚 Verificando herramientas disponibles en el contenedor..."
+	docker compose -f $(COMPOSE_FILE_SELECTED) exec api sh -c "which go || echo 'Go no instalado'; ls -la /app/"
+	@echo "🔧 Intentando ejecutar consulta..."
+	docker compose -f $(COMPOSE_FILE_SELECTED) exec api sh -c "cd /app && go run -c 'database.ConnectPostgres(); db := database.GetDB(); var users []models.SystemUser; db.Where(\"role = ?\", \"admin\").Find(&users); for _, u := range users { fmt.Printf(\"ID: %d | Username: %s | Email: %s | Active: %t\\n\", u.ID, u.Username, u.Email, u.IsActive) }'" 2>&1 || echo "❌ Error ejecutando consulta Go"
 
 show-admin-credentials: ## Mostrar credenciales por defecto del admin
 	@echo "🔑 Credenciales por defecto del administrador:"
