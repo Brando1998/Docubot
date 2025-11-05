@@ -63,7 +63,8 @@ func LoginWithPaseto(c *gin.Context) {
 	}
 
 	var user models.SystemUser
-	if err := db.Where("username = ?", req.Username).First(&user).Error; err != nil {
+	// Buscar por username o email
+	if err := db.Where("username = ? OR email = ?", req.Username, req.Username).First(&user).Error; err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "credenciales inválidas"})
 		return
 	}
