@@ -17,6 +17,22 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /home/ubuntu/docubot
-            git pull origin main
+            # Ensure the project directory exists and is a git repository
+            if [ ! -d "/home/ubuntu/docubot" ]; then
+              echo "Cloning repository..."
+              git clone https://github.com/${{ github.repository }} /home/ubuntu/docubot
+              cd /home/ubuntu/docubot
+            else
+              cd /home/ubuntu/docubot
+              if [ ! -d ".git" ]; then
+                echo "Directory exists but not a git repo, re-cloning..."
+                cd ..
+                rm -rf docubot
+                git clone https://github.com/${{ github.repository }} docubot
+                cd docubot
+              else
+                echo "Pulling latest changes..."
+                git pull origin main
+              fi
+            fi
             make ENV=prod up-local
