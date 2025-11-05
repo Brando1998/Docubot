@@ -35,4 +35,6 @@ jobs:
                 git pull origin main
               fi
             fi
+            echo "Stopping existing services..."
+            make ENV=prod down-local || true
             make ENV=prod up-local
