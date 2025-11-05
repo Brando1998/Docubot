@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -17,6 +18,15 @@ import (
 )
 
 func main() {
+	// Parse command line flags
+	listFlag := flag.Bool("list", false, "List admin users without interactive reset")
+	flag.Parse()
+
+	if *listFlag {
+		listAdmins()
+		return
+	}
+
 	fmt.Println("🤖 Docubot - Reset de Credenciales de Admin")
 	fmt.Println("==========================================")
 	fmt.Println()
@@ -118,4 +128,35 @@ func main() {
 	fmt.Printf("🕒 Actualizado: %s\n", selectedAdmin.UpdatedAt.Format("2006-01-02 15:04:05"))
 	fmt.Println()
 	fmt.Println("💡 Ya puedes hacer login con las nuevas credenciales.")
+}
+
+func listAdmins() {
+	// Cargar configuración
+	config.LoadEnv()
+
+	// Conectar a la base de datos
+	if err := database.ConnectPostgres(); err != nil {
+		log.Fatalf("❌ Error al conectar a PostgreSQL: %v", err)
+	}
+
+	db := database.GetDB()
+
+	// Listar usuarios administradores existentes
+	var admins []models.SystemUser
+	if err := db.Where("role = ?", "admin").Find(&admins).Error; err != nil {
+		log.Fatalf("❌ Error al buscar administradores: %v", err)
+	}
+
+	if len(admins) == 0 {
+		fmt.Println("⚠️  No se encontraron usuarios administradores en el sistema.")
+		fmt.Println("💡 Tip: Reinicia la API para crear el usuario admin por defecto.")
+		return
+	}
+
+	fmt.Printf("🔍 Administradores encontrados (%d):\n", len(admins))
+	fmt.Println("=====================================")
+	for _, admin := range admins {
+		fmt.Printf("ID: %d | Username: %s | Email: %s | Active: %t\n",
+			admin.ID, admin.Username, admin.Email, admin.IsActive)
+	}
 }
