@@ -38,4 +38,6 @@ jobs:
             echo "Stopping existing services..."
             docker compose -f docker-compose.prod.yml down --remove-orphans || true
             docker container prune -f || true
+            # Force remove any remaining containers with conflicting names
+            docker rm -f docubot-mongo docubot-postgres docubot-playwright docubot-api docubot-vue docubot-rasa docubot-baileys || true
             make ENV=prod up-local
