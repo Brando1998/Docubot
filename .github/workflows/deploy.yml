@@ -36,5 +36,6 @@ jobs:
               fi
             fi
             echo "Stopping existing services..."
-            make ENV=prod down-local || true
+            docker compose -f docker-compose.prod.yml down --remove-orphans || true
+            docker container prune -f || true
             make ENV=prod up-local
