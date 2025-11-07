@@ -6,7 +6,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/brando1998/docubot-api/middleware"
 	"github.com/brando1998/docubot-api/models"
 	"github.com/brando1998/docubot-api/repositories"
 )
@@ -75,11 +74,14 @@ func GetOrganizationByID(c *gin.Context) {
 
 // GetMyOrganization obtiene la organización del usuario autenticado
 func GetMyOrganization(c *gin.Context) {
-	orgID, exists := middleware.GetOrganizationID(c)
+	// 🔧 Usar c.Get directamente en lugar de middleware.GetOrganizationID
+	orgIDInterface, exists := c.Get("organization_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "No se pudo obtener la organización"})
 		return
 	}
+
+	orgID := orgIDInterface.(uint)
 
 	org, err := organizationRepo.GetByID(orgID)
 	if err != nil {

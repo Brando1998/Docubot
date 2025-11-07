@@ -22,12 +22,13 @@ import (
 // @Failure 400 {object} map[string]string
 // @Router /api/v1/users [post]
 func CreateClient(c *gin.Context) {
-	// 🆕 Obtener organization_id del contexto
-	orgID, exists := middleware.GetOrganizationID(c)
+	// 🔧 Obtener organization_id del contexto directamente
+	orgIDInterface, exists := c.Get("organization_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Organización no encontrada"})
 		return
 	}
+	orgID := orgIDInterface.(uint)
 
 	var user models.Client
 	if err := c.ShouldBindJSON(&user); err != nil {
@@ -35,6 +36,7 @@ func CreateClient(c *gin.Context) {
 		return
 	}
 
+	// 🆕 Asignar organization_id del usuario autenticado
 	user.OrganizationID = orgID
 
 	if err := clientRepo.CreateClient(&user); err != nil {
@@ -59,12 +61,13 @@ func CreateClient(c *gin.Context) {
 // @Failure 404 {object} map[string]string
 // @Router /api/v1/users/id/{id} [get]
 func GetClientByID(c *gin.Context) {
-	// 🆕 Obtener organization_id del contexto
-	orgID, exists := middleware.GetOrganizationID(c)
+	// 🔧 Obtener organization_id del contexto directamente
+	orgIDInterface, exists := c.Get("organization_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Organización no encontrada"})
 		return
 	}
+	orgID := orgIDInterface.(uint)
 
 	// Obtener ID desde parámetros de URL
 	idParam := c.Param("id")
@@ -80,7 +83,7 @@ func GetClientByID(c *gin.Context) {
 		return
 	}
 
-	// Buscar usuario
+	// 🆕 Buscar usuario filtrando por organización
 	user, err := clientRepo.GetClientByID(uint(id), orgID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Usuario no encontrado"})
@@ -92,7 +95,7 @@ func GetClientByID(c *gin.Context) {
 
 // GetClientByPhone godoc
 // @Summary Obtener usuario por teléfono
-// @Description Busca un usuario por su número de teléfono
+// @Description Busca un usuario específico por su número de teléfono
 // @Tags usuarios
 // @Produce json
 // @Param phone path string true "Número de teléfono"
@@ -101,12 +104,13 @@ func GetClientByID(c *gin.Context) {
 // @Failure 404 {object} map[string]string
 // @Router /api/v1/users/phone/{phone} [get]
 func GetClientByPhone(c *gin.Context) {
-	// 🆕 Obtener organization_id del contexto
-	orgID, exists := middleware.GetOrganizationID(c)
+	// 🔧 Obtener organization_id del contexto directamente
+	orgIDInterface, exists := c.Get("organization_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Organización no encontrada"})
 		return
 	}
+	orgID := orgIDInterface.(uint)
 
 	phone := c.Param("phone")
 	if phone == "" {
@@ -114,7 +118,99 @@ func GetClientByPhone(c *gin.Context) {
 		return
 	}
 
+	// 🆕 Buscar usuario filtrando por organización
 	user, err := clientRepo.GetClientByPhone(phone, orgID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Usuario no encontrado"})
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
+}
+
+// GetOrCreateClient godoc
+// @Summary Obtener o crear usuario
+// @Description Busca un usuario por teléfono. Si no existe, lo crea.
+// @Tags usuarios
+// @Accept json
+// @Produce json
+// @Param data body map[string]string true "Datos del usuario"
+// @Success 200 {object} models.Client
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/users/get-or-create [post]
+func GetOrCreateClient(c *gin.Context) {
+	// 🔧 Obtener organization_id del contexto directamente
+	orgIDInterface, exists := c.Get("organization_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Organización no encontrada"})
+		return
+	}
+	orgID := orgIDInterface.(uint)
+
+	var input struct {
+		Phone string `json:"phone" binding:"required"`
+		Name  string `json:"name"`
+		Email string `json:"email"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Datos inválidos", "details": err.Error()})
+		return
+	}
+
+	if input.Phone == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Número de teléfono requerido"})
+		return
+	}
+
+	// 🆕 Pasar organization_id al repositorio
+	user, err := clientRepo.GetOrCreateClient(input.Phone, input.Name, input.Email, orgID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al procesar usuario", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Usuario procesado exitosamente",
+		"user":    user,
+	})
+}
+
+// GetCurrentUser obtiene el usuario autenticado desde el token
+// @Summary Obtener usuario actual
+// @Description Retorna el perfil del usuario autenticado
+// @Tags usuarios
+// @Produce json
+// @Success 200 {object} models.Client
+// @Failure 401 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /api/v1/users/me [get]
+func GetCurrentUser(c *gin.Context) {
+	// Obtener ID del usuario desde el middleware de autenticación
+	userID, exists := c.Get("current_user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuario no autenticado"})
+		return
+	}
+
+	// 🔧 Obtener organization_id del contexto directamente
+	orgIDInterface, exists := c.Get("organization_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Organización no encontrada"})
+		return
+	}
+	orgID := orgIDInterface.(uint)
+
+	// Convertir interface{} a uint
+	id, ok := userID.(uint)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error de autenticación"})
+		return
+	}
+
+	// 🆕 Buscar usuario filtrando por organización
+	user, err := clientRepo.GetClientByID(id, orgID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Usuario no encontrado"})
 		return
@@ -135,6 +231,14 @@ func GetClientByPhone(c *gin.Context) {
 // @Failure 500 {object} map[string]string
 // @Router /api/v1/dashboard/stats [get]
 func GetDashboardStats(c *gin.Context) {
+	// 🔧 Obtener organization_id del contexto directamente
+	orgIDInterface, exists := c.Get("organization_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Organización no encontrada"})
+		return
+	}
+	orgID := orgIDInterface.(uint)
+
 	startDateStr := c.Query("start_date")
 	endDateStr := c.Query("end_date")
 	period := c.Query("period")
@@ -154,8 +258,8 @@ func GetDashboardStats(c *gin.Context) {
 		return
 	}
 
-	// Obtener estadísticas
-	stats, err := calculateDashboardStats(c.Request.Context(), startDate, endDate)
+	// 🆕 Obtener estadísticas filtrando por organización
+	stats, err := calculateDashboardStats(c.Request.Context(), startDate, endDate, orgID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Error calculando estadísticas",
@@ -217,11 +321,12 @@ func calculateDateRange(startDateStr, endDateStr, period string) (time.Time, tim
 }
 
 // calculateDashboardStats calcula todas las estadísticas del dashboard
-func calculateDashboardStats(ctx context.Context, startDate, endDate time.Time) (map[string]interface{}, error) {
+// 🆕 Ahora recibe orgID para filtrar por organización
+func calculateDashboardStats(ctx context.Context, startDate, endDate time.Time, orgID uint) (map[string]interface{}, error) {
 	stats := make(map[string]interface{})
 
-	// 1. Estadísticas de clientes
-	clientStats, err := getClientStats(ctx, startDate, endDate)
+	// 1. Estadísticas de clientes (filtrado por organización)
+	clientStats, err := getClientStats(ctx, startDate, endDate, orgID)
 	if err != nil {
 		return nil, err
 	}
@@ -252,15 +357,16 @@ func calculateDashboardStats(ctx context.Context, startDate, endDate time.Time) 
 }
 
 // getClientStats obtiene estadísticas de clientes
-func getClientStats(ctx context.Context, startDate, endDate time.Time) (map[string]interface{}, error) {
-	// Total de clientes
-	totalClients, err := clientRepo.GetTotalClients(ctx)
+// 🆕 Ahora filtra por organization_id
+func getClientStats(ctx context.Context, startDate, endDate time.Time, orgID uint) (map[string]interface{}, error) {
+	// Total de clientes de la organización
+	totalClients, err := clientRepo.GetTotalClients(ctx, orgID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Clientes nuevos en el período
-	newClients, err := clientRepo.GetClientsCreatedBetween(ctx, startDate, endDate)
+	// Clientes nuevos en el período de la organización
+	newClients, err := clientRepo.GetClientsCreatedBetween(ctx, startDate, endDate, orgID)
 	if err != nil {
 		return nil, err
 	}
@@ -350,141 +456,52 @@ func getConversationStats(ctx context.Context, startDate, endDate time.Time) (ma
 
 // getChatbotStats obtiene estadísticas del chatbot
 func getChatbotStats(ctx context.Context, startDate, endDate time.Time) (map[string]interface{}, error) {
-	// Chats en modo bot vs manual
-	botModeChats, err := conversationRepo.GetChatsInBotMode(ctx)
+	// Chats en modo bot vs modo usuario
+	botModeChats, err := conversationRepo.GetChatsByMode(ctx, true, startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
 
-	manualModeChats, err := conversationRepo.GetChatsInManualMode(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// Chats archivados
-	archivedChats, err := conversationRepo.GetArchivedChatsCount(ctx, startDate, endDate)
-	if err != nil {
-		return nil, err
-	}
-
-	// Tasa de éxito de formularios (documentos completados / intentos)
-	formSuccessRate, err := calculateFormSuccessRate(ctx, startDate, endDate)
+	userModeChats, err := conversationRepo.GetChatsByMode(ctx, false, startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
 
 	return map[string]interface{}{
-		"bot_mode_chats":    botModeChats,
-		"manual_mode_chats": manualModeChats,
-		"archived_chats":    archivedChats,
-		"form_success_rate": formSuccessRate,
+		"bot_mode_chats":  len(botModeChats),
+		"user_mode_chats": len(userModeChats),
+		"total_chats":     len(botModeChats) + len(userModeChats),
 	}, nil
 }
 
-// Funciones auxiliares
+// Funciones auxiliares adicionales
+
+// getActiveClientsCount cuenta clientes que han tenido actividad
 func getActiveClientsCount(ctx context.Context, startDate, endDate time.Time) (int, error) {
-	// Obtener clientes únicos que han tenido mensajes en el período
-	// Implementación simplificada
-	return 0, nil // TODO: Implementar
+	activeConversations, err := conversationRepo.GetActiveConversations(ctx, startDate, endDate)
+	if err != nil {
+		return 0, err
+	}
+
+	// Contar clientes únicos
+	uniqueClients := make(map[uint]bool)
+	for _, conv := range activeConversations {
+		uniqueClients[conv.UserID] = true
+	}
+
+	return len(uniqueClients), nil
 }
 
-func calculateAverageMessages(conversations []interface{}) float64 {
+// calculateAverageMessages calcula el promedio de mensajes por conversación
+func calculateAverageMessages(conversations []models.Conversation) float64 {
 	if len(conversations) == 0 {
 		return 0
 	}
-	// Implementación simplificada
-	return 0 // TODO: Implementar cálculo real
-}
 
-func calculateFormSuccessRate(ctx context.Context, startDate, endDate time.Time) (float64, error) {
-	// Calcular tasa de éxito basada en documentos completados vs totales
-	// Implementación simplificada
-	return 0.85, nil // TODO: Implementar cálculo real
-}
-
-// GetOrCreateClient godoc
-// @Summary Obtener o crear un usuario por teléfono
-// @Description Busca un usuario por teléfono. Si no existe, lo crea.
-// @Tags usuarios
-// @Accept json
-// @Produce json
-// @Param data body map[string]string true "Datos del usuario"
-// @Success 200 {object} models.Client
-// @Failure 400 {object} map[string]string
-// @Failure 500 {object} map[string]string
-// @Router /api/v1/users/get-or-create [post]
-func GetOrCreateClient(c *gin.Context) {
-	// 🆕 Obtener organization_id del contexto
-	orgID, exists := middleware.GetOrganizationID(c)
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Organización no encontrada"})
-		return
+	totalMessages := 0
+	for _, conv := range conversations {
+		totalMessages += len(conv.Messages)
 	}
 
-	var input struct {
-		Phone string `json:"phone" binding:"required"`
-		Name  string `json:"name"`
-		Email string `json:"email"`
-	}
-
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Datos inválidos", "details": err.Error()})
-		return
-	}
-
-	if input.Phone == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Número de teléfono requerido"})
-		return
-	}
-
-	user, err := clientRepo.GetOrCreateClient(input.Phone, input.Name, input.Email, orgID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al procesar usuario", "details": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Usuario procesado exitosamente",
-		"user":    user,
-	})
-}
-
-// GetCurrentUser obtiene el usuario autenticado desde el token
-// @Summary Obtener usuario actual
-// @Description Retorna el perfil del usuario autenticado
-// @Tags usuarios
-// @Produce json
-// @Success 200 {object} models.Client
-// @Failure 401 {object} map[string]string
-// @Failure 404 {object} map[string]string
-// @Router /api/v1/users/me [get]
-func GetCurrentUser(c *gin.Context) {
-	// Obtener ID del usuario desde el middleware de autenticación
-	userID, exists := c.Get("current_user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuario no autenticado"})
-		return
-	}
-
-	// 🆕 Obtener organization_id del contexto
-	orgID, exists := middleware.GetOrganizationID(c)
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Organización no encontrada"})
-		return
-	}
-
-	// Convertir interface{} a uint
-	id, ok := userID.(uint)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error de autenticación"})
-		return
-	}
-
-	user, err := clientRepo.GetClientByID(id, orgID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Usuario no encontrado"})
-		return
-	}
-
-	c.JSON(http.StatusOK, user)
+	return float64(totalMessages) / float64(len(conversations))
 }
