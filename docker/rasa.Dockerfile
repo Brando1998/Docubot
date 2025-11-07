@@ -35,11 +35,13 @@ RUN echo "🧹 Cleaning old models..." && \
     ls -la models/
 
 # ✅ SOLUCIÓN CRÍTICA: Configurar permisos CORRECTAMENTE
-COPY start.sh /app/start.sh
+COPY start_unix.sh /app/start.sh
 
 # ⚠️ ORDEN CRÍTICO: Permisos ANTES de cambiar usuario
 RUN chmod +x /app/start.sh && \
     chmod 755 /app/start.sh && \
+    echo "🧪 Testing start.sh existence:" && \
+    ls -la /app/start.sh && \
     chown -R 1001:1001 /app && \
     chmod -R 755 /app
 
@@ -54,5 +56,5 @@ HEALTHCHECK --interval=15s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:5005 || exit 1
 
 # ✅ USAR ENTRYPOINT con array format para evitar problemas de shell
-ENTRYPOINT ["/app/start.sh"]
+ENTRYPOINT ["/bin/bash", "/app/start.sh"]
 CMD []
