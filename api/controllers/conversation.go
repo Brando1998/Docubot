@@ -143,7 +143,8 @@ func processIncomingMessage(msg IncomingMessageRequest, hub *WebSocketHub) error
 
 		// Guardar el mensaje de audio y la respuesta en la DB
 		cleanPhone := strings.Split(msg.Phone, "@")[0]
-		client, err := clientRepo.GetOrCreateClient(cleanPhone, "", "")
+		orgID := getOrganizationIDFromBot(msg.BotNumber)
+		client, err := clientRepo.GetOrCreateClient(cleanPhone, "", "", orgID)
 		if err != nil {
 			return fmt.Errorf("failed to get/create client: %w", err)
 		}
@@ -183,7 +184,8 @@ func processIncomingMessage(msg IncomingMessageRequest, hub *WebSocketHub) error
 
 	// 1. Procesar cliente (guardar en DB)
 	cleanPhone := strings.Split(msg.Phone, "@")[0]
-	client, err := clientRepo.GetOrCreateClient(cleanPhone, "", "")
+	orgID := getOrganizationIDFromBot(msg.BotNumber)
+	client, err := clientRepo.GetOrCreateClient(cleanPhone, "", "", orgID)
 	if err != nil {
 		return fmt.Errorf("failed to get/create client: %w", err)
 	}
@@ -305,4 +307,15 @@ func sendToRasa(rasaURL, sender, message string) ([]RasaResponseItem, error) {
 	}
 
 	return responses, nil
+}
+
+func getOrganizationIDFromBot(botNumber string) uint {
+	cleanBotNumber := strings.Split(botNumber, "@")[0]
+	var instance models.BotInstance
+	err := database.GetDB().Where("whatsapp_number = ?", cleanBotNumber).First(&instance).Error
+	if err == nil {
+		return instance.OrganizationID
+	}
+	log.Printf("⚠️ Bot %s no encontrado, usando org por defecto", cleanBotNumber)
+	return 1
 }
