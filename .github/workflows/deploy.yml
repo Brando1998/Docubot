@@ -10,6 +10,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Get AWS Instance Public IP
+        run: |
+          echo "🔍 Detecting AWS public IP..."
+          # Try to get the IP from the SSH connection context
+          PUBLIC_IP="${{ secrets.SSH_HOST }}"
+          echo "AWS Instance IP: $PUBLIC_IP"
+          echo "PUBLIC_IP=$PUBLIC_IP" >> $GITHUB_ENV
+
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -17,27 +25,69 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            echo "🚀 Starting deployment to AWS..."
+
+            # Get current public IP (in case it changed)
+            CURRENT_IP=$(curl -s http://checkip.amazonaws.com)
+            echo "📍 Current AWS public IP: $CURRENT_IP"
+
             # Ensure the project directory exists and is a git repository
             if [ ! -d "/home/ubuntu/docubot" ]; then
-              echo "Cloning repository..."
+              echo "📥 Cloning repository..."
               git clone https://github.com/${{ github.repository }} /home/ubuntu/docubot
               cd /home/ubuntu/docubot
             else
               cd /home/ubuntu/docubot
               if [ ! -d ".git" ]; then
-                echo "Directory exists but not a git repo, re-cloning..."
+                echo "📁 Directory exists but not a git repo, re-cloning..."
                 cd ..
                 rm -rf docubot
                 git clone https://github.com/${{ github.repository }} docubot
                 cd docubot
               else
-                echo "Pulling latest changes..."
+                echo "⬇️ Pulling latest changes..."
                 git pull origin main
               fi
             fi
-            echo "Stopping existing services..."
+
+            echo "🔧 Updating configuration with current IP..."
+            # Update Vue environment files with current IP
+            sed -i "s|VITE_API_URL=.*|VITE_API_URL=http://$CURRENT_IP:8080|" vue-dashboard/.env
+            sed -i "s|VITE_API_URL=.*|VITE_API_URL=http://$CURRENT_IP:8080|" vue-dashboard/.env.development
+
+            # Also update docker-compose environment if needed
+            # This is for the Vue container build args
+            export VITE_API_URL="http://$CURRENT_IP:8080"
+
+            echo "📋 Updated configuration:"
+            echo "   - VITE_API_URL=http://$CURRENT_IP:8080"
+            echo "   - Vue dashboard will be built with current IP"
+
+            echo "🛑 Stopping existing services..."
             docker compose -f docker-compose.prod.yml down --remove-orphans || true
             docker container prune -f || true
+
             # Force remove any remaining containers with conflicting names
             docker rm -f docubot-mongo docubot-postgres docubot-playwright docubot-api docubot-vue docubot-rasa docubot-baileys || true
+
+            echo "🚀 Starting services with updated configuration..."
             make ENV=prod up-local
+
+            echo "✅ Deployment complete!"
+            echo "🌐 Your app is available at: http://$CURRENT_IP"
+            echo "📊 Vue Dashboard: http://$CURRENT_IP:80"
+            echo "🔧 API: http://$CURRENT_IP:8080"
+
+      - name: Verify Deployment
+        run: |
+          sleep 10  # Wait for services to start
+          echo "🔍 Verifying deployment..."
+
+          # Test if the API is responding
+          curl -f "http://${{ env.PUBLIC_IP }}:8080/health" || echo "API health check failed"
+
+          # Test if the Vue dashboard is responding
+          curl -f "http://${{ env.PUBLIC_IP }}:80/health" || echo "Vue health check failed"
+
+          echo "🎉 Deployment verification complete!"
+          echo "🌐 Your app should be accessible at: http://${{ env.PUBLIC_IP }}"
