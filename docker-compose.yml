@@ -13,7 +13,11 @@ services:
       - "5432:5432"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-docubot_db}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-docubot_db}",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -51,7 +55,7 @@ services:
         condition: service_healthy
     ports:
       - "5005:5005"
-      - "5055:5055"  # Action server
+      - "5055:5055" # Action server
     volumes:
       - ./rasa-bot:/app
       - rasa_models:/app/models
@@ -82,7 +86,11 @@ services:
       - ./env/dev/playwright.env
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1",
+        ]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -95,7 +103,7 @@ services:
       dockerfile: ../docker/vue.Dockerfile
       args:
         # 🔥 Pasa la variable en tiempo de BUILD
-        VITE_API_URL: ${VITE_API_URL:-http://api:8080}
+        VITE_API_URL: ${VITE_API_URL:-http://18.223.102.115:8080}
     container_name: docubot-vue
     depends_on:
       api:
@@ -104,7 +112,15 @@ services:
       - "3002:3002"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3002/health",
+        ]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -166,7 +182,11 @@ services:
       - NODE_ENV=production
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1",
+        ]
       interval: 20s
       timeout: 10s
       retries: 3
