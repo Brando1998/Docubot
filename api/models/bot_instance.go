@@ -4,6 +4,7 @@ import "time"
 
 type BotInstance struct {
 	ID             uint      `json:"id" gorm:"primaryKey"`
+	OrganizationID uint      `json:"organization_id" gorm:"index"`
 	Name           string    `json:"name" gorm:"uniqueIndex"`
 	ContainerID    string    `json:"container_id"`
 	Port           int       `json:"port" gorm:"uniqueIndex"`

@@ -39,6 +39,7 @@ type ConversationRepository interface {
 	GetTotalMessages(ctx context.Context) (int64, error)
 	GetMessagesBetween(ctx context.Context, startDate, endDate time.Time) ([]models.Message, error)
 	GetActiveConversations(ctx context.Context, startDate, endDate time.Time) ([]interface{}, error)
+	GetChatsByMode(ctx context.Context, botMode bool, startDate, endDate time.Time) ([]interface{}, error)
 	GetChatsInBotMode(ctx context.Context) (int64, error)
 	GetChatsInManualMode(ctx context.Context) (int64, error)
 	GetArchivedChatsCount(ctx context.Context, startDate, endDate time.Time) (int64, error)
@@ -361,4 +362,27 @@ func (r *conversationRepository) GetArchivedChatsCount(ctx context.Context, star
 	}
 	count, err := archivesCollection.CountDocuments(ctx, filter)
 	return count, err
+}
+
+func (r *conversationRepository) GetChatsByMode(ctx context.Context, botMode bool, startDate, endDate time.Time) ([]interface{}, error) {
+	chatModesCollection := r.collection.Database().Collection("chat_modes")
+	filter := bson.M{
+		"bot_mode": botMode,
+		"created_at": bson.M{
+			"$gte": startDate,
+			"$lt":  endDate,
+		},
+	}
+
+	cursor, err := chatModesCollection.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var results []interface{}
+	if err = cursor.All(ctx, &results); err != nil {
+		return nil, err
+	}
+	return results, nil
 }
