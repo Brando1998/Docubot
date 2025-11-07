@@ -10,7 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/o1egl/paseto"
 
-	"github.com/brando1998/docubot-api/controllers"
 	database "github.com/brando1998/docubot-api/databases"
 	"github.com/brando1998/docubot-api/models"
 )
@@ -70,10 +69,10 @@ func PasetoAuthMiddleware() gin.HandlerFunc {
 	}
 }
 
-// verifyPasetoToken verifica y decodifica el token
-func verifyPasetoToken(token string) (*controllers.PasetoPayload, error) {
+// verifyPasetoToken verifica y decodifica el token usando models.PasetoPayload
+func verifyPasetoToken(token string) (*models.PasetoPayload, error) {
 	v2 := paseto.NewV2()
-	var payload controllers.PasetoPayload
+	var payload models.PasetoPayload
 
 	secretKey := []byte(os.Getenv("PASETO_SECRET_KEY"))
 	if len(secretKey) == 0 {

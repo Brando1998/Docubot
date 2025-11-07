@@ -22,11 +22,20 @@ import (
 // @Failure 400 {object} map[string]string
 // @Router /api/v1/users [post]
 func CreateClient(c *gin.Context) {
+	// 🆕 Obtener organization_id del contexto
+	orgID, exists := middleware.GetOrganizationID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Organización no encontrada"})
+		return
+	}
+
 	var user models.Client
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Datos inválidos", "details": err.Error()})
 		return
 	}
+
+	user.OrganizationID = orgID
 
 	if err := clientRepo.CreateClient(&user); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al crear usuario", "details": err.Error()})
