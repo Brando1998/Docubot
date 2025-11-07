@@ -13,13 +13,14 @@ import (
 
 type ClientRepository interface {
 	CreateClient(user *models.Client) error
-	GetClientByID(id uint) (*models.Client, error)
-	GetClientByPhone(phone string) (*models.Client, error)
-	GetOrCreateClient(phone, name, email string) (*models.Client, error)
+	GetClientByID(id uint, orgID uint) (*models.Client, error) // 🆕 Agregado orgID
+	GetClientByPhone(phone string, orgID uint) (*models.Client, error) // 🆕 Agregado orgID
+	GetOrCreateClient(phone, name, email string, orgID uint) (*models.Client, error) // 🆕 Agregado orgID
+	GetAllClients(orgID uint) ([]models.Client, error) // 🆕 Nuevo método
 
-	// Nuevos métodos para estadísticas
-	GetTotalClients(ctx context.Context) (int64, error)
-	GetClientsCreatedBetween(ctx context.Context, startDate, endDate time.Time) ([]models.Client, error)
+	// Métodos para estadísticas
+	GetTotalClients(ctx context.Context, orgID uint) (int64, error) // 🆕 Agregado orgID
+	GetClientsCreatedBetween(ctx context.Context, startDate, endDate time.Time, orgID uint) ([]models.Client, error) // 🆕 Agregado orgID
 }
 
 type userRepository struct {
@@ -34,28 +35,31 @@ func (r *userRepository) CreateClient(user *models.Client) error {
 	return r.db.Create(user).Error
 }
 
-func (r *userRepository) GetClientByID(id uint) (*models.Client, error) {
+// 🆕 Modificado para filtrar por organización
+func (r *userRepository) GetClientByID(id uint, orgID uint) (*models.Client, error) {
 	var user models.Client
-	err := r.db.First(&user, id).Error
+	err := r.db.Where("id = ? AND organization_id = ?", id, orgID).First(&user).Error
 	return &user, err
 }
 
-func (r *userRepository) GetClientByPhone(phone string) (*models.Client, error) {
+// 🆕 Modificado para filtrar por organización
+func (r *userRepository) GetClientByPhone(phone string, orgID uint) (*models.Client, error) {
 	var user models.Client
-	err := r.db.Where("phone = ?", phone).First(&user).Error
+	err := r.db.Where("phone = ? AND organization_id = ?", phone, orgID).First(&user).Error
 	return &user, err
 }
 
-func (r *userRepository) GetOrCreateClient(phone, name, email string) (*models.Client, error) {
+// 🆕 Modificado para incluir orgID
+func (r *userRepository) GetOrCreateClient(phone, name, email string, orgID uint) (*models.Client, error) {
 	var user models.Client
-	err := r.db.Where("phone = ?", phone).First(&user).Error
+	err := r.db.Where("phone = ? AND organization_id = ?", phone, orgID).First(&user).Error
 
 	if err == nil {
 		return &user, nil
 	}
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		log.Printf("Cliente no encontrado, creando nuevo con phone: %s", phone)
+		log.Printf("Cliente no encontrado, creando nuevo con phone: %s para org: %d", phone, orgID)
 
 		var emailPtr *string
 		if email != "" {
@@ -63,9 +67,10 @@ func (r *userRepository) GetOrCreateClient(phone, name, email string) (*models.C
 		}
 
 		user = models.Client{
-			Phone: phone,
-			Name:  name,
-			Email: emailPtr,
+			OrganizationID: orgID,
+			Phone:          phone,
+			Name:           name,
+			Email:          emailPtr,
 		}
 
 		if createErr := r.db.Create(&user).Error; createErr != nil {
@@ -79,15 +84,23 @@ func (r *userRepository) GetOrCreateClient(phone, name, email string) (*models.C
 	return nil, err
 }
 
-// Implementaciones de los nuevos métodos para estadísticas
-func (r *userRepository) GetTotalClients(ctx context.Context) (int64, error) {
+// 🆕 Nuevo método para obtener todos los clientes de una organización
+func (r *userRepository) GetAllClients(orgID uint) ([]models.Client, error) {
+	var clients []models.Client
+	err := r.db.Where("organization_id = ?", orgID).Find(&clients).Error
+	return clients, err
+}
+
+// 🆕 Modificado para filtrar por organización
+func (r *userRepository) GetTotalClients(ctx context.Context, orgID uint) (int64, error) {
 	var count int64
-	err := r.db.Model(&models.Client{}).Count(&count).Error
+	err := r.db.Model(&models.Client{}).Where("organization_id = ?", orgID).Count(&count).Error
 	return count, err
 }
 
-func (r *userRepository) GetClientsCreatedBetween(ctx context.Context, startDate, endDate time.Time) ([]models.Client, error) {
+// 🆕 Modificado para filtrar por organización
+func (r *userRepository) GetClientsCreatedBetween(ctx context.Context, startDate, endDate time.Time, orgID uint) ([]models.Client, error) {
 	var clients []models.Client
-	err := r.db.Where("created_at BETWEEN ? AND ?", startDate, endDate).Find(&clients).Error
+	err := r.db.Where("created_at BETWEEN ? AND ? AND organization_id = ?", startDate, endDate, orgID).Find(&clients).Error
 	return clients, err
 }

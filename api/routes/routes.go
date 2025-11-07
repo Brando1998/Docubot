@@ -1,4 +1,3 @@
-// api/routes/routes.go - Versión actualizada con endpoints WhatsApp
 package routes
 
 import (
@@ -65,7 +64,21 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 	api.Use(middleware.PasetoAuthMiddleware())
 	{
 		// --------------------------
-		// Usuarios
+		// 🆕 Organizaciones
+		// --------------------------
+		orgGroup := api.Group("/organizations")
+		{
+			orgGroup.GET("/me", controllers.GetMyOrganization) // Mi organización
+			// Solo admin puede crear/modificar organizaciones
+			// orgGroup.POST("", middleware.RequireAdmin(), controllers.CreateOrganization)
+			// orgGroup.GET("", middleware.RequireAdmin(), controllers.GetOrganizations)
+			// orgGroup.GET("/:id", middleware.RequireAdmin(), controllers.GetOrganizationByID)
+			// orgGroup.PUT("/:id", middleware.RequireAdmin(), controllers.UpdateOrganization)
+			// orgGroup.DELETE("/:id", middleware.RequireAdmin(), controllers.DeleteOrganization)
+		}
+
+		// --------------------------
+		// Usuarios (Clients)
 		// --------------------------
 		userGroup := api.Group("/users")
 		{
@@ -81,24 +94,17 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 		// --------------------------
 		whatsappGroup := api.Group("/whatsapp")
 		{
-			// 🆕 Endpoints principales para el dashboard
-			whatsappGroup.GET("/qr", controllers.GetWhatsAppQR)               // Obtener QR o estado
-			whatsappGroup.POST("/disconnect", controllers.DisconnectWhatsApp) // Finalizar sesión
-			whatsappGroup.GET("/status", controllers.GetSessionStatus)        // Estado detallado
-
-			// Endpoints para manejo de mensajes y sesiones
-			whatsappGroup.POST("/send", controllers.SendWhatsAppMessage)           // Enviar mensaje
-			whatsappGroup.POST("/restart", controllers.RestartWhatsAppSession)     // Reiniciar sesión completa
-			whatsappGroup.POST("/clear-session", controllers.ClearWhatsAppSession) // Limpiar credenciales
-
-			// 🆕 Endpoints para gestión de múltiples sesiones
-			whatsappGroup.POST("/sessions", controllers.CreateWhatsAppSession) // Crear nueva sesión
-			whatsappGroup.GET("/sessions", controllers.ListWhatsAppSessions)   // Listar todas las sesiones
-
-			// 🆕 Endpoints para gestión de chats
-			whatsappGroup.GET("/chats", controllers.GetChatList)                      // Listar chats
-			whatsappGroup.GET("/chats/:chatId/messages", controllers.GetChatMessages) // Obtener mensajes de un chat
-			whatsappGroup.POST("/chats/:chatId/send", controllers.SendChatMessage)    // Enviar mensaje a un chat
+			whatsappGroup.GET("/qr", controllers.GetWhatsAppQR)
+			whatsappGroup.POST("/disconnect", controllers.DisconnectWhatsApp)
+			whatsappGroup.GET("/status", controllers.GetSessionStatus)
+			whatsappGroup.POST("/send", controllers.SendWhatsAppMessage)
+			whatsappGroup.POST("/restart", controllers.RestartWhatsAppSession)
+			whatsappGroup.POST("/clear-session", controllers.ClearWhatsAppSession)
+			whatsappGroup.POST("/sessions", controllers.CreateWhatsAppSession)
+			whatsappGroup.GET("/sessions", controllers.ListWhatsAppSessions)
+			whatsappGroup.GET("/chats", controllers.GetChatList)
+			whatsappGroup.GET("/chats/:chatId/messages", controllers.GetChatMessages)
+			whatsappGroup.POST("/chats/:chatId/send", controllers.SendChatMessage)
 		}
 
 		// --------------------------
@@ -106,7 +112,7 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 		// --------------------------
 		documentGroup := api.Group("/documents")
 		{
-			documentGroup.POST("", controllers.SaveDocument) // Guardar documento generado
+			documentGroup.POST("", controllers.SaveDocument)
 		}
 
 		// --------------------------
@@ -114,8 +120,8 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 		// --------------------------
 		chatGroup := api.Group("/chats")
 		{
-			chatGroup.POST("/mode", controllers.UpdateChatMode) // Actualizar modo bot/usuario
-			chatGroup.POST("/archive", controllers.ArchiveChat) // Archivar chat
+			chatGroup.POST("/mode", controllers.UpdateChatMode)
+			chatGroup.POST("/archive", controllers.ArchiveChat)
 		}
 
 		// --------------------------
@@ -123,7 +129,7 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 		// --------------------------
 		clientGroup := api.Group("/clients")
 		{
-			clientGroup.GET("/:clientId/documents", controllers.GetClientDocuments) // Obtener documentos de cliente
+			clientGroup.GET("/:clientId/documents", controllers.GetClientDocuments)
 		}
 
 		// --------------------------
@@ -131,7 +137,7 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 		// --------------------------
 		conversationGroup := api.Group("/conversations")
 		{
-			conversationGroup.GET("/:clientId/export", controllers.ExportConversation) // Exportar conversación
+			conversationGroup.GET("/:clientId/export", controllers.ExportConversation)
 		}
 
 		// --------------------------
@@ -139,9 +145,12 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 		// --------------------------
 		dashboardGroup := api.Group("/dashboard")
 		{
-			dashboardGroup.GET("/stats", controllers.GetDashboardStats) // Estadísticas del dashboard
+			dashboardGroup.GET("/stats", controllers.GetDashboardStats)
 		}
 
+		// --------------------------
+		// Instancias de Bots
+		// --------------------------
 		instanceGroup := api.Group("/bot-instances")
 		{
 			instanceGroup.POST("", controllers.CreateBotInstance)
@@ -149,15 +158,4 @@ func SetupRoutes(r *gin.Engine, config *RouterConfig) {
 			instanceGroup.DELETE("/:id", controllers.DeleteBotInstance)
 		}
 	}
-
-	// =============================================
-	// Rutas de Administración (futuro)
-	// =============================================
-	// admin := r.Group("/admin")
-	// admin.Use(middleware.PasetoAdminMiddleware())
-	// {
-	// 	admin.GET("/metrics", controllers.GetMetrics)
-	// 	admin.GET("/users", controllers.GetAllUsers)
-	// 	admin.DELETE("/users/:id", controllers.DeleteUser)
-	// }
 }

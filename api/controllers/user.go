@@ -50,6 +50,13 @@ func CreateClient(c *gin.Context) {
 // @Failure 404 {object} map[string]string
 // @Router /api/v1/users/id/{id} [get]
 func GetClientByID(c *gin.Context) {
+	// 🆕 Obtener organization_id del contexto
+	orgID, exists := middleware.GetOrganizationID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Organización no encontrada"})
+		return
+	}
+
 	// Obtener ID desde parámetros de URL
 	idParam := c.Param("id")
 	if idParam == "" {
@@ -65,7 +72,7 @@ func GetClientByID(c *gin.Context) {
 	}
 
 	// Buscar usuario
-	user, err := clientRepo.GetClientByID(uint(id))
+	user, err := clientRepo.GetClientByID(uint(id), orgID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Usuario no encontrado"})
 		return
@@ -85,13 +92,20 @@ func GetClientByID(c *gin.Context) {
 // @Failure 404 {object} map[string]string
 // @Router /api/v1/users/phone/{phone} [get]
 func GetClientByPhone(c *gin.Context) {
+	// 🆕 Obtener organization_id del contexto
+	orgID, exists := middleware.GetOrganizationID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Organización no encontrada"})
+		return
+	}
+
 	phone := c.Param("phone")
 	if phone == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Número de teléfono requerido"})
 		return
 	}
 
-	user, err := clientRepo.GetClientByPhone(phone)
+	user, err := clientRepo.GetClientByPhone(phone, orgID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Usuario no encontrado"})
 		return
@@ -391,6 +405,13 @@ func calculateFormSuccessRate(ctx context.Context, startDate, endDate time.Time)
 // @Failure 500 {object} map[string]string
 // @Router /api/v1/users/get-or-create [post]
 func GetOrCreateClient(c *gin.Context) {
+	// 🆕 Obtener organization_id del contexto
+	orgID, exists := middleware.GetOrganizationID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Organización no encontrada"})
+		return
+	}
+
 	var input struct {
 		Phone string `json:"phone" binding:"required"`
 		Name  string `json:"name"`
@@ -407,7 +428,7 @@ func GetOrCreateClient(c *gin.Context) {
 		return
 	}
 
-	user, err := clientRepo.GetOrCreateClient(input.Phone, input.Name, input.Email)
+	user, err := clientRepo.GetOrCreateClient(input.Phone, input.Name, input.Email, orgID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al procesar usuario", "details": err.Error()})
 		return
@@ -436,6 +457,13 @@ func GetCurrentUser(c *gin.Context) {
 		return
 	}
 
+	// 🆕 Obtener organization_id del contexto
+	orgID, exists := middleware.GetOrganizationID(c)
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Organización no encontrada"})
+		return
+	}
+
 	// Convertir interface{} a uint
 	id, ok := userID.(uint)
 	if !ok {
@@ -443,7 +471,7 @@ func GetCurrentUser(c *gin.Context) {
 		return
 	}
 
-	user, err := clientRepo.GetClientByID(id)
+	user, err := clientRepo.GetClientByID(id, orgID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Usuario no encontrado"})
 		return

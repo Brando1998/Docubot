@@ -1,10 +1,3 @@
-// @title Docubot API
-// @version 1.0
-// @description API para generación automatizada de documentos y chatbot.
-// @host localhost:8080
-// @BasePath /
-// @schemes http
-
 package main
 
 import (
@@ -45,18 +38,23 @@ func initDependencies() (*controllers.WebSocketHub, *gin.Engine) {
 	// 3. Migraciones
 	runMigrations()
 
-	// 4. 🔥 NUEVO: Crear usuario administrador por defecto
+	// 4. 🆕 MIGRACIÓN DE DATOS EXISTENTES A MULTI-TENENCIA
+	if err := services.MigrateExistingDataToOrganizations(database.GetDB()); err != nil {
+		log.Printf("⚠️  Warning: Error en migración de datos: %v", err)
+	}
+
+	// 5. 🔥 Crear organización por defecto y usuario administrador
 	if err := services.EnsureDefaultAdminUser(database.GetDB()); err != nil {
 		log.Fatalf("Failed to ensure default admin user: %v", err)
 	}
 
-	// 5. Inicialización de repositorios
+	// 6. Inicialización de repositorios
 	initRepositories()
 
-	// 6. WebSocket Hub
+	// 7. WebSocket Hub
 	wsHub := controllers.NewWebSocketHub()
 
-	// 7. Configuración de Gin
+	// 8. Configuración de Gin
 	routerConfig := &routes.RouterConfig{
 		WSHub:    wsHub,
 		Upgrader: &upgrader,
@@ -72,6 +70,7 @@ func runMigrations() {
 	log.Println("🔄 Ejecutando migraciones de base de datos...")
 
 	err := database.DB.AutoMigrate(
+		&models.Organization{},    // 🆕 Primera para las foreign keys
 		&models.Client{},
 		&models.Bot{},
 		&models.WhatsAppSession{},
@@ -90,11 +89,13 @@ func initRepositories() {
 	clientRepo := repositories.NewClientRepository(database.DB)
 	botRepo := repositories.NewBotRepository(database.DB)
 	botInstanceRepo := repositories.NewBotInstanceRepository(database.DB)
+	organizationRepo := repositories.NewOrganizationRepository(database.DB) // 🆕
 
 	controllers.SetConversationRepo(conversationRepo)
 	controllers.SetClientRepo(clientRepo)
 	controllers.SetBotRepo(botRepo)
 	controllers.SetBotInstanceRepo(botInstanceRepo)
+	controllers.SetOrganizationRepo(organizationRepo) // 🆕
 
 	if err := controllers.InitDockerManager(); err != nil {
 		log.Fatalf("Failed to initialize Docker manager: %v", err)

@@ -19,8 +19,6 @@ var (
 	ErrInvalidToken         = errors.New("token inválido")
 	ErrInvalidTokenFormat   = errors.New("formato de token inválido")
 	ErrUnsupportedTokenType = errors.New("tipo de token no soportado")
-	// ❌ PROBLEMA: Esta línea también causaba nil pointer
-	// authDB                  = database.GetDB()
 )
 
 // PasetoAuthMiddleware verifica tokens PASETO para usuarios del sistema
@@ -38,16 +36,15 @@ func PasetoAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// ✅ SOLUCIÓN: Obtener DB directamente en la función
 		db := database.GetDB()
 		if db == nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "error de conexión a base de datos"})
 			return
 		}
 
-		// Verificar si el usuario aún existe
+		// Verificar si el usuario aún existe y cargar la organización
 		var user models.SystemUser
-		if err := db.First(&user, payload.UserID).Error; err != nil {
+		if err := db.Preload("Organization").First(&user, payload.UserID).Error; err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "usuario no encontrado"})
 			return
 		}
@@ -58,10 +55,17 @@ func PasetoAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
+		// Verificar que la organización esté activa
+		if !user.Organization.IsActive {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "organización inactiva"})
+			return
+		}
+
 		// Almacenar datos en el contexto
 		c.Set("current_user_id", payload.UserID)
 		c.Set("current_user_role", payload.Role)
-		c.Set("current_user", user) // También almacenar el objeto completo del usuario
+		c.Set("organization_id", user.OrganizationID) // 🆕 Incluir organization_id
+		c.Set("current_user", user)
 		c.Next()
 	}
 }
