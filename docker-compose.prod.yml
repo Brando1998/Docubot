@@ -162,7 +162,7 @@ services:
       api:
         condition: service_healthy
     ports:
-      - "80:3002"
+      - "80:80" # antes era 80:3002
     env_file:
       - ./env/prod/vue.env
     restart: unless-stopped
@@ -170,7 +170,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "wget --no-verbose --tries=1 --spider http://localhost:3002/health || exit 1",
+          "wget --no-verbose --tries=1 --spider http://localhost/health || exit 1",
         ]
       interval: 15s
       timeout: 5s
