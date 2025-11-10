@@ -1,8 +1,28 @@
 import axios, { AxiosError } from "axios";
 import { useAuth } from "../composables/useAuth";
 
+// Function to get API base URL
+const getApiBaseUrl = () => {
+  // Check if VITE_API_URL is set
+  const envApiUrl = import.meta.env.VITE_API_URL;
+
+  if (envApiUrl && envApiUrl !== "auto") {
+    return envApiUrl;
+  }
+
+  // Auto-detect from current domain
+  if (typeof window !== "undefined") {
+    const protocol = window.location.protocol;
+    const host = window.location.host;
+    return `${protocol}//${host}:8080`;
+  }
+
+  // Fallback for SSR or build time
+  return "http://13.59.238.219:8080";
+};
+
 const api = axios.create({
-  baseURL: "/", // API directly - backend handles /api/v1/ routing
+  baseURL: getApiBaseUrl() + "/api", // Environment-based API URL
 });
 
 api.interceptors.request.use(

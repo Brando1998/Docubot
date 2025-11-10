@@ -16,8 +16,13 @@ export default defineConfig({
   server: {
     host: "0.0.0.0",
     port: 5173,
-    // Direct connection to AWS API - no proxy needed
-    // Proxy removed since we connect directly to 18.223.102.115:8080
+    proxy: {
+      "/api": {
+        target: import.meta.env.VITE_API_URL,
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
 
   // Configuración para producción
