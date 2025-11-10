@@ -157,6 +157,8 @@ services:
     build:
       context: ./vue-dashboard
       dockerfile: ../docker/vue.Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
     container_name: docubot-vue
     depends_on:
       api:
