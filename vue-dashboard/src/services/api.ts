@@ -22,7 +22,7 @@ const getApiBaseUrl = () => {
 };
 
 const api = axios.create({
-  baseURL: getApiBaseUrl() + "/api", // Environment-based API URL
+  baseURL: getApiBaseUrl(), // Environment-based API URL (no /api since composables include it)
 });
 
 api.interceptors.request.use(

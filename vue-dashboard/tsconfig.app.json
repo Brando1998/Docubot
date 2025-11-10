@@ -13,10 +13,10 @@
     /* Path mapping configuration */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     },
 
-    /* Type checking - Less strict for development */
+    /* Type checking - Relaxed for development */
     "strict": false,
     "noImplicitAny": false,
     "noImplicitReturns": false,
@@ -25,7 +25,12 @@
     /* Module support */
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": false
+    "forceConsistentCasingInFileNames": false,
+
+    /* Vue-specific */
+    "types": ["vite/client", "node"],
+    "jsx": "preserve",
+    "useDefineForClassFields": true
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "src/**/*.d.ts"]
 }
