@@ -1,80 +1,88 @@
-import { ref } from 'vue'
-import axios from 'axios'
+import { ref } from "vue";
+import axios from "axios";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+const API_BASE_URL = "/api"; // Use nginx proxy - automatically routes to API
 
 interface BotInstance {
-  id: number
-  name: string
-  port: number
-  status: string
-  whatsapp_number: string
-  based_on_bot_id: number
-  created_at: string
+  id: number;
+  name: string;
+  port: number;
+  status: string;
+  whatsapp_number: string;
+  based_on_bot_id: number;
+  created_at: string;
 }
 
 export function useBots() {
-  const bots = ref<BotInstance[]>([])
-  const isLoading = ref(false)
-  const error = ref<string | null>(null)
+  const bots = ref<BotInstance[]>([]);
+  const isLoading = ref(false);
+  const error = ref<string | null>(null);
 
   const fetchBots = async () => {
-    isLoading.value = true
-    error.value = null
+    isLoading.value = true;
+    error.value = null;
     try {
-      const token = localStorage.getItem('access_token')
+      const token = localStorage.getItem("access_token");
       const response = await axios.get(`${API_BASE_URL}/api/v1/bot-instances`, {
         headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
-      bots.value = response.data || []
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      bots.value = response.data || [];
     } catch (err: any) {
-      error.value = err.response?.data?.error || 'Error cargando bots'
-      console.error('Error fetching bots:', err)
+      error.value = err.response?.data?.error || "Error cargando bots";
+      console.error("Error fetching bots:", err);
     } finally {
-      isLoading.value = false
+      isLoading.value = false;
     }
-  }
+  };
 
-  const createBot = async (data: { name: string; whatsapp_number: string; based_on_bot_id?: number }) => {
-    isLoading.value = true
-    error.value = null
+  const createBot = async (data: {
+    name: string;
+    whatsapp_number: string;
+    based_on_bot_id?: number;
+  }) => {
+    isLoading.value = true;
+    error.value = null;
     try {
-      const token = localStorage.getItem('access_token')
-      const response = await axios.post(`${API_BASE_URL}/api/v1/bot-instances`, data, {
-        headers: {
-          Authorization: `Bearer ${token}`
+      const token = localStorage.getItem("access_token");
+      const response = await axios.post(
+        `${API_BASE_URL}/api/v1/bot-instances`,
+        data,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
-      })
-      await fetchBots()
-      return response.data
+      );
+      await fetchBots();
+      return response.data;
     } catch (err: any) {
-      error.value = err.response?.data?.error || 'Error creando bot'
-      throw err
+      error.value = err.response?.data?.error || "Error creando bot";
+      throw err;
     } finally {
-      isLoading.value = false
+      isLoading.value = false;
     }
-  }
+  };
 
   const deleteBot = async (id: number) => {
-    isLoading.value = true
-    error.value = null
+    isLoading.value = true;
+    error.value = null;
     try {
-      const token = localStorage.getItem('access_token')
+      const token = localStorage.getItem("access_token");
       await axios.delete(`${API_BASE_URL}/api/v1/bot-instances/${id}`, {
         headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
-      await fetchBots()
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      await fetchBots();
     } catch (err: any) {
-      error.value = err.response?.data?.error || 'Error eliminando bot'
-      throw err
+      error.value = err.response?.data?.error || "Error eliminando bot";
+      throw err;
     } finally {
-      isLoading.value = false
+      isLoading.value = false;
     }
-  }
+  };
 
   return {
     bots,
@@ -82,6 +90,6 @@ export function useBots() {
     error,
     fetchBots,
     createBot,
-    deleteBot
-  }
+    deleteBot,
+  };
 }
