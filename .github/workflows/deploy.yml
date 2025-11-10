@@ -45,6 +45,8 @@ jobs:
                 git clone https://github.com/${{ github.repository }} docubot
                 cd docubot
               else
+                echo "💾 Stashing local changes..."
+                git stash
                 echo "⬇️ Pulling latest changes..."
                 git pull origin main
               fi
