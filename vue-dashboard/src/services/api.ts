@@ -22,7 +22,7 @@ const getApiBaseUrl = () => {
 };
 
 const api = axios.create({
-  baseURL: getApiBaseUrl(), // Environment-based API URL (no /api since composables include it)
+  baseURL: getApiBaseUrl(), // ✅ SIN /api - cada composable agrega su ruta completa
 });
 
 api.interceptors.request.use(

@@ -23,17 +23,17 @@ export function useAuth() {
   const login = async (username: string, password: string) => {
     try {
       const res = await api.post("/auth/login", { username, password });
-      
+
       // ✅ LIMPIO: Solo guardar el token
       accessToken.value = res.data.access_token;
-      
+
       if (accessToken.value) {
         localStorage.setItem("accessToken", accessToken.value);
       }
-      
+
       // ✅ OPCIONAL: Cargar datos del usuario inmediatamente
       await getCurrentUser();
-      
+
       return res.data;
     } catch (error) {
       console.error("Error en login:", error);
@@ -51,18 +51,22 @@ export function useAuth() {
     if (!accessToken.value) throw new Error("No hay token para refrescar");
 
     try {
-      const res = await api.post("/auth/refresh", {}, {
-        headers: {
-          Authorization: `Bearer ${accessToken.value}`
+      const res = await api.post(
+        "/auth/refresh",
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken.value}`,
+          },
         }
-      });
+      );
 
       accessToken.value = res.data.access_token;
-      
+
       if (accessToken.value) {
         localStorage.setItem("accessToken", accessToken.value);
       }
-      
+
       return res.data;
     } catch (error) {
       logout();
@@ -73,11 +77,11 @@ export function useAuth() {
   // ✅ PRINCIPAL: Obtener datos actualizados del usuario desde el servidor
   const getCurrentUser = async () => {
     if (!accessToken.value) return null;
-    
+
     try {
       // ✅ NUEVO ENDPOINT: /auth/me en lugar de /api/v1/users/me
       const res = await api.get("/auth/me");
-      
+
       currentUser.value = {
         id: res.data.id,
         username: res.data.username,
@@ -86,7 +90,7 @@ export function useAuth() {
         is_active: res.data.is_active,
         last_login: res.data.last_login,
       };
-      
+
       return currentUser.value;
     } catch (error: any) {
       console.error("Error obteniendo usuario actual:", error);
@@ -112,7 +116,7 @@ export function useAuth() {
   };
 
   const hasAnyRole = (roles: string[]) => {
-    return roles.includes(userRole.value || '');
+    return roles.includes(userRole.value || "");
   };
 
   // ✅ NUEVO: Verificar si el usuario está activo
@@ -126,13 +130,13 @@ export function useAuth() {
     currentUser,
     isAuthenticated,
     isUserActive,
-    
+
     // Datos computados del usuario
     userRole,
     userEmail,
     userId,
     username,
-    
+
     // Funciones
     login,
     logout,

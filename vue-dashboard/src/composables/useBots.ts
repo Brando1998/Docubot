@@ -1,4 +1,5 @@
 import { ref } from "vue";
+import api from "@/services/api";
 
 interface BotInstance {
   id: number;
@@ -19,12 +20,7 @@ export function useBots() {
     isLoading.value = true;
     error.value = null;
     try {
-      const token = localStorage.getItem("access_token");
-      const response = await axios.get(`${API_BASE_URL}/api/v1/bot-instances`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await api.get("/api/v1/bot-instances");
       bots.value = response.data || [];
     } catch (err: any) {
       error.value = err.response?.data?.error || "Error cargando bots";
@@ -42,16 +38,7 @@ export function useBots() {
     isLoading.value = true;
     error.value = null;
     try {
-      const token = localStorage.getItem("access_token");
-      const response = await axios.post(
-        `${API_BASE_URL}/api/v1/bot-instances`,
-        data,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await api.post("/api/v1/bot-instances", data);
       await fetchBots();
       return response.data;
     } catch (err: any) {
@@ -66,12 +53,7 @@ export function useBots() {
     isLoading.value = true;
     error.value = null;
     try {
-      const token = localStorage.getItem("access_token");
-      await axios.delete(`${API_BASE_URL}/api/v1/bot-instances/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      await api.delete(`/api/v1/bot-instances/${id}`);
       await fetchBots();
     } catch (err: any) {
       error.value = err.response?.data?.error || "Error eliminando bot";
