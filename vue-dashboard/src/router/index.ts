@@ -37,11 +37,11 @@ const dashboardChildren = [
     meta: { requiresAuth: true },
   },
   {
-    path: 'bots',
-    name: 'BotManagement',
-    component: () => import('@/views/Dashboard/BotManagement.vue'),
+    path: "bots",
+    name: "BotManagement",
+    component: () => import("@/views/Dashboard/BotManagement.vue"),
     meta: { requiresAuth: true },
-  }
+  },
 ];
 
 const routes = [
@@ -73,6 +73,5 @@ router.beforeEach((to) => {
     return "/unauthorized";
   }
 });
-
 
 export default router;
