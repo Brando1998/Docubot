@@ -102,7 +102,6 @@ services:
       context: ./vue-dashboard
       dockerfile: ../docker/vue.Dockerfile
       args:
-        # 🔥 Pasa la variable en tiempo de BUILD
         VITE_API_URL: ${VITE_API_URL:-http://18.223.102.115:8080}
     container_name: docubot-vue
     depends_on:
