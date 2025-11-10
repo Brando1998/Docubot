@@ -44,11 +44,11 @@ services:
         condition: service_healthy
     ports:
       - "5005:5005"
-      - "5055:5055"  # Action server
+      - "5055:5055" # Action server
     volumes:
       # Solo montar archivos de configuración en desarrollo
       # En producción, todo está en la imagen
-      - ./rasa-bot/actions:/app/actions:ro  # Solo lectura
+      - ./rasa-bot/actions:/app/actions:ro # Solo lectura
       # NO montar la carpeta models para evitar conflictos
     environment:
       - RASA_MODEL_SERVER=http://localhost:5005
@@ -67,7 +67,7 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-  
+
   playwright:
     build:
       context: ./playwright-bot
@@ -79,7 +79,11 @@ services:
       - ./env/prod/playwright.env
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1",
+        ]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -139,7 +143,11 @@ services:
       - NODE_ENV=production
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1",
+        ]
       interval: 20s
       timeout: 10s
       retries: 3
@@ -159,7 +167,11 @@ services:
       - ./env/prod/vue.env
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://localhost:3002/health || exit 1",
+        ]
       interval: 15s
       timeout: 5s
       retries: 3
