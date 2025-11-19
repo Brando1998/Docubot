@@ -1,17 +1,82 @@
 const fs = require("fs");
 const path = require("path");
 const { v4: uuidv4 } = require("uuid");
+const { createLogger } = require("../utils/logger");
 
 class FileManager {
   constructor(downloadsDir = "/downloads") {
     this.downloadsDir = downloadsDir;
+    this.recordsFile = path.join(downloadsDir, "records.json");
     this.fileRecords = new Map();
+    this.logger = createLogger({ component: "FileManager" });
     this.ensureDownloadsDir();
+    this.loadRecords();
   }
 
   ensureDownloadsDir() {
     if (!fs.existsSync(this.downloadsDir)) {
       fs.mkdirSync(this.downloadsDir, { recursive: true });
+      this.logger.info(
+        { path: this.downloadsDir },
+        "Created downloads directory"
+      );
+    }
+  }
+
+  /**
+   * Cargar registros desde el archivo JSON
+   */
+  loadRecords() {
+    try {
+      if (fs.existsSync(this.recordsFile)) {
+        const data = fs.readFileSync(this.recordsFile, "utf-8");
+        const records = JSON.parse(data);
+
+        // Convertir de objeto a Map y parsear fechas
+        for (const [id, record] of Object.entries(records)) {
+          this.fileRecords.set(id, {
+            ...record,
+            createdAt: new Date(record.createdAt),
+            expiresAt: new Date(record.expiresAt),
+          });
+        }
+
+        this.logger.info(
+          { count: this.fileRecords.size },
+          "Loaded file records from disk"
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        { error: error.message },
+        "Error loading file records"
+      );
+      // Si hay error, empezar con Map vacío
+      this.fileRecords = new Map();
+    }
+  }
+
+  /**
+   * Guardar registros al archivo JSON
+   */
+  saveRecords() {
+    try {
+      // Convertir Map a objeto simple para JSON
+      const recordsObj = {};
+      for (const [id, record] of this.fileRecords.entries()) {
+        recordsObj[id] = record;
+      }
+
+      fs.writeFileSync(
+        this.recordsFile,
+        JSON.stringify(recordsObj, null, 2),
+        "utf-8"
+      );
+    } catch (error) {
+      this.logger.error(
+        { error: error.message },
+        "Error saving file records"
+      );
     }
   }
 
@@ -35,6 +100,7 @@ class FileManager {
     };
 
     this.fileRecords.set(fileId, record);
+    this.saveRecords(); // Persistir cambios
     return record;
   }
 
@@ -60,6 +126,11 @@ class FileManager {
     // Limpiar archivos huérfanos (sin registro)
     const files = fs.readdirSync(this.downloadsDir);
     for (const file of files) {
+      // Saltar el archivo de registros
+      if (file === "records.json") {
+        continue;
+      }
+
       const filePath = path.join(this.downloadsDir, file);
 
       // Saltar si es un directorio
@@ -75,6 +146,11 @@ class FileManager {
         fs.unlinkSync(filePath);
         deletedCount++;
       }
+    }
+
+    // Persistir cambios en registros
+    if (deletedCount > 0) {
+      this.saveRecords();
     }
 
     return deletedCount;

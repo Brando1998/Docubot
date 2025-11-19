@@ -61,6 +61,11 @@ services:
       - rasa_models:/app/models
     env_file:
       - ./env/dev/rasa.env
+    environment:
+      - RASA_MODEL_SERVER=http://localhost:5005
+      - ACTION_ENDPOINT_URL=http://localhost:5055/webhook
+      - API_URL=${API_URL:-http://api:8080}
+      - PLAYWRIGHT_URL=${PLAYWRIGHT_URL:-http://playwright:3001}
     restart: unless-stopped
     command: >
       bash -c "
@@ -82,6 +87,8 @@ services:
     container_name: docubot-playwright
     ports:
       - "3001:3001"
+    volumes:
+      - playwright_downloads:/downloads
     env_file:
       - ./env/dev/playwright.env
     restart: unless-stopped
@@ -102,7 +109,7 @@ services:
       context: ./vue-dashboard
       dockerfile: ../docker/vue.Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://18.223.102.115:8080}
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
     container_name: docubot-vue
     depends_on:
       api:
@@ -197,6 +204,7 @@ volumes:
   rasa_models:
   baileys_auth:
   baileys_sessions:
+  playwright_downloads:
 
 networks:
   default:

@@ -1,0 +1,82 @@
+# Test - Crear Manifiesto
+
+## Request Body
+```json
+{
+  "remesa": {
+    "consecutivo": "TEST001",
+    "tipoOperacion": "Mercancia Consolidada",
+    "tipoEmpaque": "Varios",
+    "descripcionCorta": "Prueba de mercancía general para testing",
+    "capitulo": "Varios",
+    "partida": "Productos varios",
+    "cantidadEstimada": 50,
+    "empresa": {
+      "nit": "8600537463",
+      "sedeCargue": "SEDE-001",
+      "sedeDescargue": "SEDE-002"
+    },
+    "tiempoCargue": "2:00",
+    "tiempoDescargue": "2:00"
+  },
+  "manifiesto": {
+    "tipoManifiesto": "General",
+    "municipioOrigen": "Bogotá",
+    "municipioDestino": "Medellín",
+    "titularTipoId": "Cedula Ciudadania",
+    "titularNumeroId": "1234567890",
+    "placaVehiculo": "ABC123",
+    "conductorTipoId": "Cedula Ciudadania",
+    "conductorNumeroId": "9876543210",
+    "valorPagar": "500000",
+    "lugarPago": "Medellín",
+    "recomendaciones": "Manejo con cuidado - prueba de testing"
+  }
+}
+```
+
+## Comandos de Test
+
+### 1. Health Check
+```bash
+curl http://localhost:3001/health
+```
+
+### 2. Queue Stats
+```bash
+curl http://localhost:3001/api/queue/stats
+```
+
+### 3. Crear Manifiesto (Windows PowerShell)
+```powershell
+$body = Get-Content test-data.json -Raw
+Invoke-WebRequest -Uri http://localhost:3001/api/manifiesto `
+  -Method POST `
+  -ContentType "application/json" `
+  -Body $body
+```
+
+### 4. Test de Validación (debe fallar con 400)
+```powershell
+$invalidBody = @{
+  remesa = @{
+    empresa = @{ nit = "123" }  # NIT inválido
+  }
+} | ConvertTo-Json -Depth 5
+
+Invoke-WebRequest -Uri http://localhost:3001/api/manifiesto `
+  -Method POST `
+  -ContentType "application/json" `
+  -Body $invalidBody
+```
+
+### 5. Descargar PDF (reemplazar {fileId} con el ID del response)
+```bash
+curl http://localhost:3001/api/download/{fileId} -o manifiesto.pdf
+```
+
+## Notas
+- Los municipios deben existir en el sistema RNDC
+- Las sedes deben estar registradas para el NIT especificado
+- El formato de placa es estricto: 3 letras + 3 números (mayúsculas)
+- Los archivos expiran en 24 horas

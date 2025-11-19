@@ -55,13 +55,8 @@ Thumbs.db
 *.dmg
 *.iso
 
-# ✅ SOLUCIÓN: Comentar o eliminar estas líneas problemáticas
 # Otros proyectos (si tienes más carpetas)
-# api/              # ← PROBLEMA: Docker necesita acceder a estos
-# baileys-ws/       # ← PROBLEMA: para los contextos de build
-# playwright-bot/   # ← PROBLEMA: definidos en docker-compose.yml
-# k8s/
-# docker/           # ← PROBLEMA PRINCIPAL: contiene los Dockerfiles
+RNDC_PAGE/
 
 # Documentation
 README.md

@@ -46,10 +46,10 @@ services:
       - "5005:5005"
       - "5055:5055" # Action server
     volumes:
-      # Solo montar archivos de configuración en desarrollo
-      # En producción, todo está en la imagen
-      - ./rasa-bot/actions:/app/actions:ro # Solo lectura
-      # NO montar la carpeta models para evitar conflictos
+      # En producción: solo actions en modo lectura
+      - ./rasa-bot/actions:/app/actions:ro
+      # Volumen para persistir modelos re-entrenados
+      - rasa_models:/app/models
     environment:
       - RASA_MODEL_SERVER=http://localhost:5005
       - ACTION_ENDPOINT_URL=http://localhost:5055/webhook
@@ -75,6 +75,8 @@ services:
     container_name: docubot-playwright
     expose:
       - "3001"
+    volumes:
+      - playwright_downloads:/downloads
     env_file:
       - ./env/prod/playwright.env
     restart: unless-stopped
@@ -185,6 +187,7 @@ volumes:
   rasa_models:
   baileys_auth:
   baileys_sessions:
+  playwright_downloads:
 
 networks:
   default:

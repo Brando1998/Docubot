@@ -105,3 +105,9 @@ creds.txt
 # BAILLEYS AUTH FILES
 # -------------------------
 baileys-ws/auth/
+
+
+# -------------------------
+# RNDC_PAGE
+# -------------------------
+RNDC_PAGE/

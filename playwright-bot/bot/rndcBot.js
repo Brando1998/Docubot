@@ -1,13 +1,24 @@
 const { chromium } = require("playwright");
+const { createLogger } = require("../utils/logger");
 
 class RNDCBot {
-  constructor() {
+  constructor(logger = null) {
+    // Validar credenciales
+    this.username = process.env.RNDC_USUARIO;
+    this.password = process.env.RNDC_CONTRASENA;
+
+    if (!this.username || !this.password) {
+      throw new Error(
+        "RNDC credentials not configured. Please set RNDC_USUARIO and RNDC_CONTRASENA environment variables."
+      );
+    }
+
     this.browser = null;
+    this.logger = logger || createLogger({ component: "RNDCBot" });
+    
     this.loginUrl =
       process.env.RNDC_LOGIN_URL ||
       "https://rndc.mintransporte.gov.co/MenuPrincipal/tabid/204/language/es-MX/Default.aspx";
-    this.username = process.env.RNDC_USUARIO || "";
-    this.password = process.env.RNDC_CONTRASENA || "";
     this.remesaUrl =
       "https://rndc.mintransporte.gov.co/programasRNDC/creardocumento/tabid/69/ctl/Remesa/mid/396/procesoid/3/default.aspx";
     this.manifiestoUrl =
@@ -15,23 +26,32 @@ class RNDCBot {
   }
 
   async initialize() {
+    this.logger.info("Initializing browser");
+    
     this.browser = await chromium.launch({
       headless: true,
       executablePath: process.env.CHROMIUM_PATH,
       args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
+
+    this.logger.info("Browser initialized successfully");
   }
 
   async close() {
     if (this.browser) {
+      this.logger.info("Closing browser");
       await this.browser.close();
       this.browser = null;
     }
   }
 
   async login(page) {
-    await page.goto(this.loginUrl, { waitUntil: "networkidle" });
-    await page.waitForTimeout(2000);
+    this.logger.info("Starting login to RNDC");
+    
+    await page.goto(this.loginUrl, { 
+      waitUntil: "networkidle",
+      timeout: 30000 
+    });
 
     // Selectores múltiples para compatibilidad
     const usernameSelector =
@@ -44,18 +64,33 @@ class RNDCBot {
     await page.fill(usernameSelector, this.username);
     await page.fill(passwordSelector, this.password);
 
+    this.logger.debug("Credentials filled, submitting login form");
+
     await Promise.all([
       page.waitForNavigation({ waitUntil: "networkidle", timeout: 30000 }),
       page.click(submitSelector),
     ]);
 
-    await page.waitForTimeout(2000);
+    // Verificar login exitoso
+    const url = page.url();
+    if (url.includes("Login") || url.includes("login")) {
+      this.logger.error({ url }, "Login failed - still on login page");
+      throw new Error("Login failed. Please check RNDC credentials.");
+    }
+
+    this.logger.info("Login successful");
   }
 
   async fillRemesa(page, data) {
-    await page.goto(this.remesaUrl, { waitUntil: "networkidle" });
+    this.logger.info("Starting to fill Remesa form");
+    
+    await page.goto(this.remesaUrl, { 
+      waitUntil: "networkidle",
+      timeout: 30000 
+    });
 
     // Consecutivo
+    this.logger.debug({ consecutivo: data.consecutivo }, "Setting consecutivo");
     await page.fill("#dnn_ctr396_Remesa_CONSECUTIVOREMESA", data.consecutivo);
 
     // Tipo Operación
@@ -91,33 +126,80 @@ class RNDCBot {
       cantidad.toString()
     );
 
-    // PROPIETARIO DE LA CARGA - Tipo: NIT, Número: 8600537463
+    // PROPIETARIO DE LA CARGA
+    const empresaNit = data.empresa?.nit || data.nit;
+    if (!empresaNit) {
+      throw new Error("NIT de empresa es requerido en data.empresa.nit");
+    }
+
+    this.logger.debug({ nit: empresaNit }, "Setting empresa NIT");
+
     await page.selectOption("#dnn_ctr396_Remesa_TIPOIDPROPIETARIO", {
       label: "Nit",
     });
-    await page.fill("#dnn_ctr396_Remesa_NUMIDPROPIETARIO", "8600537463");
-    await page.waitForTimeout(1500);
+    
+    // Esperar la respuesta AJAX que valida el NIT
+    const propietarioResponse = page.waitForResponse(
+      (response) => response.url().includes("Remesa") && response.status() === 200,
+      { timeout: 10000 }
+    );
+    
+    await page.fill("#dnn_ctr396_Remesa_NUMIDPROPIETARIO", empresaNit);
+    await propietarioResponse.catch(() => {}); // No fallar si no hay AJAX
+    
+    // Esperar que el campo esté habilitado
+    await page.waitForLoadState("networkidle");
 
-    // SITIO DE CARGUE (Remitente) - Tipo: NIT, Número: 8600537463
+    // SITIO DE CARGUE (Remitente)
+    this.logger.debug("Setting remitente (cargue)");
+    
     await page.selectOption("#dnn_ctr396_Remesa_TIPOIDREMITENTE", {
       label: "Nit",
     });
-    await page.fill("#dnn_ctr396_Remesa_NUMIDREMITENTE", "8600537463");
-    await page.waitForTimeout(1500);
+    
+    const remitenteResponse = page.waitForResponse(
+      (response) => response.url().includes("Remesa") && response.status() === 200,
+      { timeout: 10000 }
+    );
+    
+    await page.fill("#dnn_ctr396_Remesa_NUMIDREMITENTE", empresaNit);
+    await remitenteResponse.catch(() => {});
+    
+    // Esperar que el dropdown de sede se cargue
+    await page.waitForSelector(
+      "#dnn_ctr396_Remesa_SEDEREMITENTELISTA option:not([value=''])",
+      { timeout: 10000 }
+    );
+    
     await page.selectOption(
       "#dnn_ctr396_Remesa_SEDEREMITENTELISTA",
-      data.sedeCargue
+      data.empresa?.sedeCargue || data.sedeCargue
     );
 
-    // SITIO DE DESCARGUE (Destinatario) - Tipo: NIT, Número: 8600537463
+    // SITIO DE DESCARGUE (Destinatario)
+    this.logger.debug("Setting destinatario (descargue)");
+    
     await page.selectOption("#dnn_ctr396_Remesa_TIPOIDDESTINATARIO", {
       label: "Nit",
     });
-    await page.fill("#dnn_ctr396_Remesa_NUMIDDESTINATARIO", "8600537463");
-    await page.waitForTimeout(1500);
+    
+    const destinatarioResponse = page.waitForResponse(
+      (response) => response.url().includes("Remesa") && response.status() === 200,
+      { timeout: 10000 }
+    );
+    
+    await page.fill("#dnn_ctr396_Remesa_NUMIDDESTINATARIO", empresaNit);
+    await destinatarioResponse.catch(() => {});
+    
+    // Esperar que el dropdown de sede se cargue
+    await page.waitForSelector(
+      "#dnn_ctr396_Remesa_SEDEDESTINATARIOLISTA option:not([value=''])",
+      { timeout: 10000 }
+    );
+    
     await page.selectOption(
       "#dnn_ctr396_Remesa_SEDEDESTINATARIOLISTA",
-      data.sedeDescargue
+      data.empresa?.sedeDescargue || data.sedeDescargue
     );
 
     // Tomador de la Póliza
@@ -202,49 +284,85 @@ class RNDCBot {
     );
 
     // Municipio Origen - Con autocomplete
+    this.logger.debug("Setting municipio origen with autocomplete");
     const origenInput = "#dnn_ctr396_ManifiestoSCD_ORIGENCARGAMANIFIESTO";
     await page.fill(origenInput, data.municipioOrigen);
     await page.waitForSelector(".ui-autocomplete li.ui-menu-item", {
+      state: "visible",
       timeout: 5000,
     });
     await page.click(".ui-autocomplete li.ui-menu-item:first-child");
-    await page.waitForTimeout(500);
+    // Esperar que el autocomplete se cierre
+    await page.waitForSelector(".ui-autocomplete", {
+      state: "hidden",
+      timeout: 3000,
+    }).catch(() => {});
 
     // Municipio Destino - Con autocomplete
+    this.logger.debug("Setting municipio destino with autocomplete");
     const destinoInput = "#dnn_ctr396_ManifiestoSCD_DESTINOCARGAMANIFIESTO";
     await page.fill(destinoInput, data.municipioDestino);
     await page.waitForSelector(".ui-autocomplete li.ui-menu-item", {
+      state: "visible",
       timeout: 5000,
     });
     await page.click(".ui-autocomplete li.ui-menu-item:first-child");
-    await page.waitForTimeout(500);
+    // Esperar que el autocomplete se cierre
+    await page.waitForSelector(".ui-autocomplete", {
+      state: "hidden",
+      timeout: 3000,
+    }).catch(() => {});
 
     // TITULAR MANIFIESTO
+    this.logger.debug("Setting titular manifiesto");
     const titularTipo = data.titularTipoId || "Cedula Ciudadania";
     await page.selectOption(
       "#dnn_ctr396_ManifiestoSCD_TIPOIDTITULARMANIFIESTO",
       { label: titularTipo }
     );
+    
+    const titularResponse = page.waitForResponse(
+      (response) => response.url().includes("Manifiesto") && response.status() === 200,
+      { timeout: 10000 }
+    );
+    
     await page.fill(
       "#dnn_ctr396_ManifiestoSCD_NUMIDTITULARMANIFIESTO",
       data.titularNumeroId
     );
-    await page.waitForTimeout(1000);
+    await titularResponse.catch(() => {});
+    await page.waitForLoadState("networkidle");
 
     // Placa Vehículo
+    this.logger.debug({ placa: data.placaVehiculo }, "Setting placa vehiculo");
+    
+    const placaResponse = page.waitForResponse(
+      (response) => response.url().includes("Manifiesto") && response.status() === 200,
+      { timeout: 10000 }
+    );
+    
     await page.fill("#dnn_ctr396_ManifiestoSCD_NUMPLACA", data.placaVehiculo);
-    await page.waitForTimeout(1000);
+    await placaResponse.catch(() => {});
+    await page.waitForLoadState("networkidle");
 
     // CONDUCTOR NRO. 1
+    this.logger.debug("Setting conductor");
     const conductorTipo = data.conductorTipoId || "Cedula Ciudadania";
     await page.selectOption("#dnn_ctr396_ManifiestoSCD_TIPOIDCONDUCTOR", {
       label: conductorTipo,
     });
+    
+    const conductorResponse = page.waitForResponse(
+      (response) => response.url().includes("Manifiesto") && response.status() === 200,
+      { timeout: 10000 }
+    );
+    
     await page.fill(
       "#dnn_ctr396_ManifiestoSCD_NUMIDCONDUCTOR",
       data.conductorNumeroId
     );
-    await page.waitForTimeout(1000);
+    await conductorResponse.catch(() => {});
+    await page.waitForLoadState("networkidle");
 
     // Valor a pagar
     await page.fill(
@@ -253,13 +371,19 @@ class RNDCBot {
     );
 
     // Lugar del Pago - Con autocomplete
+    this.logger.debug("Setting lugar de pago with autocomplete");
     const lugarPagoInput = "#dnn_ctr396_ManifiestoSCD_MUNICIPIOPAGOSALDO";
     await page.fill(lugarPagoInput, data.lugarPago);
     await page.waitForSelector(".ui-autocomplete li.ui-menu-item", {
+      state: "visible",
       timeout: 5000,
     });
     await page.click(".ui-autocomplete li.ui-menu-item:first-child");
-    await page.waitForTimeout(500);
+    // Esperar que el autocomplete se cierre
+    await page.waitForSelector(".ui-autocomplete", {
+      state: "hidden",
+      timeout: 3000,
+    }).catch(() => {});
 
     // Fecha del Pago (mañana)
     const fechaPago = data.fechaPago
@@ -291,13 +415,13 @@ class RNDCBot {
     await page.fill(remesaSelector, data.consecutivoRemesa);
 
     // Guardar Manifiesto
+    this.logger.info("Saving manifiesto");
     await page.click("#dnn_ctr396_ManifiestoSCD_btnGuardar");
-    await page.waitForTimeout(3000);
-
-    // Esperar el botón de imprimir
+    
+    // Esperar el botón de imprimir (indica que se guardó correctamente)
     await page.waitForSelector(
       '#dnn_ctr396_ManifiestoSCD_btnImprimir, a[id*="btnImprimir"]',
-      { timeout: 10000 }
+      { state: "visible", timeout: 15000 }
     );
 
     // Obtener consecutivo del manifiesto
@@ -311,8 +435,10 @@ class RNDCBot {
       }
     } catch (e) {
       // Si no encuentra el label, usa el consecutivo de remesa
+      this.logger.warn("Could not find manifiesto label, using remesa consecutivo");
     }
 
+    this.logger.info({ consecutivo: consecutivoManifiesto }, "Manifiesto saved successfully");
     return consecutivoManifiesto;
   }
 
@@ -344,6 +470,7 @@ class RNDCBot {
       throw new Error("Bot no inicializado. Llama a initialize() primero.");
     }
 
+    this.logger.info("Starting createManifiesto process");
     const page = await this.browser.newPage();
 
     try {
@@ -352,7 +479,7 @@ class RNDCBot {
 
       // 2. Crear Remesa
       const consecutivoRemesa = await this.fillRemesa(page, remesaData);
-      console.log(`Remesa creada: ${consecutivoRemesa}`);
+      this.logger.info({ consecutivo: consecutivoRemesa }, "Remesa created");
 
       // 3. Actualizar consecutivo en datos del manifiesto
       manifiestoData.consecutivoRemesa = consecutivoRemesa;
@@ -362,19 +489,26 @@ class RNDCBot {
         page,
         manifiestoData
       );
-      console.log(`Manifiesto creado: ${consecutivoManifiesto}`);
+      this.logger.info({ consecutivo: consecutivoManifiesto }, "Manifiesto created");
 
       // 5. Descargar PDF
       const filePath = await this.downloadManifiesto(page, downloadPath);
-      console.log(`PDF descargado: ${filePath}`);
+      this.logger.info({ path: filePath }, "PDF downloaded");
 
       return {
         consecutivoRemesa,
         consecutivoManifiesto,
         filePath,
       };
+    } catch (error) {
+      this.logger.error(
+        { error: error.message, stack: error.stack },
+        "Error creating manifiesto"
+      );
+      throw error;
     } finally {
       await page.close();
+      this.logger.debug("Page closed");
     }
   }
 
