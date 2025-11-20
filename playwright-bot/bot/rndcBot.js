@@ -130,13 +130,16 @@ class RNDCBot {
       const fs = require('fs');
       const path = require('path');
       
-      if (!fs.existsSync(downloadPath)) {
-        fs.mkdirSync(downloadPath, { recursive: true });
+      // Crear directorio temp dentro de downloadPath
+      const tempDir = path.join(downloadPath, 'temp');
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+        this.logger.info({ path: tempDir }, 'Created temp directory for screenshots');
       }
       
       const timestamp = Date.now();
       const filename = `error_${errorType}_${timestamp}.png`;
-      const fullPath = path.join(downloadPath, filename);
+      const fullPath = path.join(tempDir, filename);
       
       await page.screenshot({ path: fullPath, fullPage: true });
       
@@ -199,38 +202,77 @@ class RNDCBot {
 
     // Esperar a que los selectores dinámicos se carguen
     this.logger.debug("Waiting for dynamic selectors to load");
-    await page.waitForTimeout(3000); // Esperar 3 segundos para que carguen los campos dinámicos
+    await page.waitForTimeout(3000);
 
     // Log de URL antes de buscar el selector
     const urlBeforeSelect = page.url();
     this.logger.debug({ url: urlBeforeSelect }, "About to search for Tipo Operacion selector");
 
-    // Tipo Operación - Esperar explícitamente a que el selector esté disponible
+    // ✅ CORREGIDO: Tipo Operación
+    // ✅ CORREGIDO: Tipo Operación con debugging
     const tipoOp = data.tipoOperacion || "Mercancia Consolidada";
     
     try {
-      await page.waitForSelector("#dnn_ctr396_Remesa_TIPOOPERACIONCARGA", { 
+      await page.waitForSelector("#dnn_ctr396_Remesa_OPERACIONTRANSPORTE", { 
         state: "visible",
         timeout: 15000 
       });
+      
+      // DEBUGGING: Listar todas las opciones disponibles
+      const options = await page.evaluate(() => {
+        const select = document.querySelector('#dnn_ctr396_Remesa_OPERACIONTRANSPORTE');
+        if (!select) return null;
+        return Array.from(select.options).map(opt => ({
+          value: opt.value,
+          label: opt.text.trim(),
+          selected: opt.selected
+        }));
+      });
+      
+      this.logger.info({ 
+        availableOptions: options,
+        lookingFor: tipoOp
+      }, "Available options in OPERACIONTRANSPORTE");
+      
+      // Esperar más tiempo para que las opciones se carguen
+      await page.waitForTimeout(2000);
+      
+      // Intentar seleccionar
+      await page.selectOption("#dnn_ctr396_Remesa_OPERACIONTRANSPORTE", {
+        label: tipoOp,
+      });
+      
     } catch (error) {
-      // Si no encuentra el selector, capturar información de debug
       const pageTitle = await page.title();
       const pageUrl = page.url();
       const downloadPath = data._downloadPath || '/downloads';
-      const debugScreenshot = await this.captureErrorScreenshot(page, downloadPath, 'selector_not_found');
+      
+      // Capturar opciones disponibles antes del error
+      const options = await page.evaluate(() => {
+        const select = document.querySelector('#dnn_ctr396_Remesa_OPERACIONTRANSPORTE');
+        if (!select) return null;
+        return Array.from(select.options).map(opt => ({
+          value: opt.value,
+          label: opt.text.trim()
+        }));
+      }).catch(() => null);
+      
+      const debugScreenshot = await this.captureErrorScreenshot(page, downloadPath, 'tipo_operacion_error');
       
       this.logger.error({
         url: pageUrl,
         title: pageTitle,
         screenshot: debugScreenshot,
-        selector: "#dnn_ctr396_Remesa_TIPOOPERACIONCARGA"
-      }, "Selector not found - page information");
+        selector: "#dnn_ctr396_Remesa_OPERACIONTRANSPORTE",
+        availableOptions: options,
+        lookingFor: tipoOp,
+        error: error.message
+      }, "Error selecting Tipo Operacion");
       
       throw error;
     }
     
-    await page.selectOption("#dnn_ctr396_Remesa_TIPOOPERACIONCARGA", {
+    await page.selectOption("#dnn_ctr396_Remesa_OPERACIONTRANSPORTE", {
       label: tipoOp,
     });
 
@@ -255,9 +297,9 @@ class RNDCBot {
     await page.selectOption("#dnn_ctr396_Remesa_CAPITULO", { label: capitulo });
     await page.selectOption("#dnn_ctr396_Remesa_PARTIDA", { label: partida });
 
-    // Cantidad estimada
+    // ✅ CORREGIDO: Cantidad estimada
     await page.fill(
-      "#dnn_ctr396_Remesa_CANTIDADINFORMACIONCARGA",
+      "#dnn_ctr396_Remesa_CANTIDADCARGADA",
       cantidad.toString()
     );
 
@@ -280,7 +322,7 @@ class RNDCBot {
     );
     
     await page.fill("#dnn_ctr396_Remesa_NUMIDPROPIETARIO", empresaNit);
-    await propietarioResponse.catch(() => {}); // No fallar si no hay AJAX
+    await propietarioResponse.catch(() => {});
     
     // Esperar que el campo esté habilitado
     await page.waitForLoadState("networkidle");
@@ -337,43 +379,56 @@ class RNDCBot {
       data.empresa?.sedeDescargue || data.sedeDescargue
     );
 
-    // Tomador de la Póliza
-    await page.selectOption("#dnn_ctr396_Remesa_TOMADORPOLIZA", {
+    // ✅ CORREGIDO: Tomador de la Póliza
+    await page.selectOption("#dnn_ctr396_Remesa_NOMDUENOPOLIZA", {
       label: "No existe poliza",
     });
 
-    // Cita para el Cargue (fecha y hora actual)
+    // ✅ CORREGIDO: Cita para el Cargue (fecha y hora actual)
     const horaCargue = data.horaCargue ? new Date(data.horaCargue) : new Date();
     await page.fill(
-      "#dnn_ctr396_Remesa_FECHACARGUE",
+      "#dnn_ctr396_Remesa_FECHACITAPACTADACARGUE",
       this.formatDate(horaCargue)
     );
     await page.fill(
-      "#dnn_ctr396_Remesa_HORACARGUE",
+      "#dnn_ctr396_Remesa_HORACITAPACTADACARGUE",
       this.formatTime(horaCargue)
     );
 
-    // Cita para el Descargue (mañana)
+    // ✅ CORREGIDO: Cita para el Descargue (mañana)
     const horaDescargue = data.horaDescargue
       ? new Date(data.horaDescargue)
       : new Date(Date.now() + 24 * 60 * 60 * 1000);
     await page.fill(
-      "#dnn_ctr396_Remesa_FECHADESCARGUE",
+      "#dnn_ctr396_Remesa_FECHACITAPACTADADESCARGUE",
       this.formatDate(horaDescargue)
     );
     await page.fill(
-      "#dnn_ctr396_Remesa_HORADESCARGUE",
+      "#dnn_ctr396_Remesa_HORACITAPACTADADESCARGUEREMESA",
       this.formatTime(horaDescargue)
     );
 
-    // Tiempos (formato HH:MM)
+    // ✅ CORREGIDO: Tiempos (campos separados en horas y minutos)
+    const tiempoCargue = data.tiempoCargue || "2:00";
+    const [horasCargue, minutosCargue] = tiempoCargue.split(":");
     await page.fill(
-      "#dnn_ctr396_Remesa_TIEMPOTOTALCARGUE",
-      data.tiempoCargue || "1:00"
+      "#dnn_ctr396_Remesa_HORASPACTOCARGA",
+      horasCargue || "2"
     );
     await page.fill(
-      "#dnn_ctr396_Remesa_TIEMPOTOTALDESCARGUE",
-      data.tiempoDescargue || "1:00"
+      "#dnn_ctr396_Remesa_MINUTOSPACTOCARGA",
+      minutosCargue || "0"
+    );
+
+    const tiempoDescargue = data.tiempoDescargue || "2:00";
+    const [horasDescargue, minutosDescargue] = tiempoDescargue.split(":");
+    await page.fill(
+      "#dnn_ctr396_Remesa_HORASPACTODESCARGUE",
+      horasDescargue || "2"
+    );
+    await page.fill(
+      "#dnn_ctr396_Remesa_MINUTOSPACTODESCARGUE",
+      minutosDescargue || "0"
     );
 
     // Guardar
@@ -428,15 +483,15 @@ class RNDCBot {
   async fillManifiesto(page, data) {
     await page.goto(this.manifiestoUrl, { waitUntil: "networkidle" });
 
-    // Consecutivo de remesa
+    // ✅ CORREGIDO: Consecutivo de remesa
     await page.fill(
-      "#dnn_ctr396_ManifiestoSCD_NUMMANIFIESTOCARGA",
+      "#dnn_ctr396_ManifiestoSCD_CONSECUTIVOINFORMACIONVIAJE",
       data.consecutivoRemesa
     );
 
-    // Tipo Manifiesto
+    // ✅ CORREGIDO: Tipo Manifiesto
     const tipoManif = data.tipoManifiesto || "General";
-    await page.selectOption("#dnn_ctr396_ManifiestoSCD_TIPOMANIFIESTO", {
+    await page.selectOption("#dnn_ctr396_ManifiestoSCD_NOMOPERACIONTRANSPORTE", {
       label: tipoManif,
     });
 
@@ -449,9 +504,9 @@ class RNDCBot {
       this.formatDate(fechaExp)
     );
 
-    // Municipio Origen - Con autocomplete
+    // ✅ CORREGIDO: Municipio Origen - Con autocomplete
     this.logger.debug("Setting municipio origen with autocomplete");
-    const origenInput = "#dnn_ctr396_ManifiestoSCD_ORIGENCARGAMANIFIESTO";
+    const origenInput = "#dnn_ctr396_ManifiestoSCD_MANORIGEN";
     await page.fill(origenInput, data.municipioOrigen);
     await page.waitForSelector(".ui-autocomplete li.ui-menu-item", {
       state: "visible",
@@ -464,9 +519,9 @@ class RNDCBot {
       timeout: 3000,
     }).catch(() => {});
 
-    // Municipio Destino - Con autocomplete
+    // ✅ CORREGIDO: Municipio Destino - Con autocomplete
     this.logger.debug("Setting municipio destino with autocomplete");
-    const destinoInput = "#dnn_ctr396_ManifiestoSCD_DESTINOCARGAMANIFIESTO";
+    const destinoInput = "#dnn_ctr396_ManifiestoSCD_MANDESTINO";
     await page.fill(destinoInput, data.municipioDestino);
     await page.waitForSelector(".ui-autocomplete li.ui-menu-item", {
       state: "visible",
@@ -560,25 +615,25 @@ class RNDCBot {
       this.formatDate(fechaPago)
     );
 
-    // Responsable del Pago
-    await page.selectOption("#dnn_ctr396_ManifiestoSCD_PAGADORCARGUE", {
+    // ✅ CORREGIDO: Responsable del Pago
+    await page.selectOption("#dnn_ctr396_ManifiestoSCD_RESPONSABLEPAGOCARGUE", {
       label: "Remitente",
     });
-    await page.selectOption("#dnn_ctr396_ManifiestoSCD_PAGADORDESCARGUE", {
+    await page.selectOption("#dnn_ctr396_ManifiestoSCD_RESPONSABLEPAGODESCARGUE", {
       label: "Destinatario",
     });
 
-    // Recomendaciones
+    // ✅ CORREGIDO: Recomendaciones
     if (data.recomendaciones) {
       await page.fill(
-        "#dnn_ctr396_ManifiestoSCD_OBSERVACIONESMANIFIESTO",
+        "#dnn_ctr396_ManifiestoSCD_OBSERVACIONES",
         data.recomendaciones
       );
     }
 
-    // Remesa deseada
-    const remesaSelector = "#dnn_ctr396_ManifiestoSCD_NUMREMESA";
-    await page.fill(remesaSelector, data.consecutivoRemesa);
+    // ✅ CORREGIDO: Remesa deseada (es un select, no un input)
+    const remesaSelector = "#dnn_ctr396_ManifiestoSCD_MANLISTAREMESAS";
+    await page.selectOption(remesaSelector, { label: data.consecutivoRemesa });
 
     // Guardar Manifiesto
     this.logger.info("Saving manifiesto");
