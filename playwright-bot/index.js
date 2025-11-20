@@ -228,6 +228,233 @@ app.get("/api/queue/stats", (req, res) => {
   });
 });
 
+// ========================================
+// SELECTOR ENDPOINTS
+// ========================================
+
+// Helper function to load selectors from file
+function loadSelectors() {
+  const fs = require("fs");
+  const path = require("path");
+  const selectorsPath = path.join(__dirname, "data", "rndc-selectors.json");
+  
+  if (!fs.existsSync(selectorsPath)) {
+    return null;
+  }
+  
+  try {
+    const data = fs.readFileSync(selectorsPath, "utf-8");
+    return JSON.parse(data);
+  } catch (error) {
+    logger.error({ error: error.message }, "Error loading selectors");
+    return null;
+  }
+}
+
+// GET /api/selectors - Obtener todos los selectores
+app.get("/api/selectors", (req, res) => {
+  const requestLogger = createLogger({ component: "SelectorsEndpoint" });
+  
+  try {
+    const selectors = loadSelectors();
+    
+    if (!selectors) {
+      requestLogger.warn("Selectors not available");
+      return res.status(404).json({
+        success: false,
+        error: "Selectors not available. Run 'npm run update-selectors' first.",
+      });
+    }
+    
+    requestLogger.info("Selectors data retrieved");
+    res.json({
+      success: true,
+      data: selectors,
+      lastUpdated: selectors.lastUpdated,
+    });
+  } catch (error) {
+    requestLogger.error({ error: error.message }, "Error retrieving selectors");
+    res.status(500).json({
+      success: false,
+      error: "Error retrieving selectors",
+    });
+  }
+});
+
+// GET /api/selectors/remesa - Obtener selectores de remesa
+app.get("/api/selectors/remesa", (req, res) => {
+  const requestLogger = createLogger({ component: "SelectorsEndpoint" });
+  
+  try {
+    const selectors = loadSelectors();
+    
+    if (!selectors || !selectors.remesa) {
+      requestLogger.warn("Remesa selectors not available");
+      return res.status(404).json({
+        success: false,
+        error: "Remesa selectors not available",
+      });
+    }
+    
+    requestLogger.info("Remesa selectors retrieved");
+    res.json({
+      success: true,
+      data: selectors.remesa,
+      lastUpdated: selectors.lastUpdated,
+    });
+  } catch (error) {
+    requestLogger.error({ error: error.message }, "Error retrieving remesa selectors");
+    res.status(500).json({
+      success: false,
+      error: "Error retrieving remesa selectors",
+    });
+  }
+});
+
+// GET /api/selectors/remesa/:field - Obtener campo específico de remesa
+app.get("/api/selectors/remesa/:field", (req, res) => {
+  const { field } = req.params;
+  const requestLogger = createLogger({ 
+    component: "SelectorsEndpoint",
+    field 
+  });
+  
+  try {
+    const selectors = loadSelectors();
+    
+    if (!selectors || !selectors.remesa) {
+      requestLogger.warn("Remesa selectors not available");
+      return res.status(404).json({
+        success: false,
+        error: "Remesa selectors not available",
+      });
+    }
+    
+    if (!selectors.remesa[field]) {
+      requestLogger.warn("Field not found");
+      return res.status(404).json({
+        success: false,
+        error: `Field '${field}' not found in remesa selectors`,
+      });
+    }
+    
+    requestLogger.info("Field options retrieved");
+    res.json({
+      success: true,
+      field: field,
+      options: selectors.remesa[field],
+      lastUpdated: selectors.lastUpdated,
+    });
+  } catch (error) {
+    requestLogger.error({ error: error.message }, "Error retrieving field");
+    res.status(500).json({
+      success: false,
+      error: "Error retrieving field",
+    });
+  }
+});
+
+// GET /api/selectors/manifiesto - Obtener selectores de manifiesto
+app.get("/api/selectors/manifiesto", (req, res) => {
+  const requestLogger = createLogger({ component: "SelectorsEndpoint" });
+  
+  try {
+    const selectors = loadSelectors();
+    
+    if (!selectors || !selectors.manifiesto) {
+      requestLogger.warn("Manifiesto selectors not available");
+      return res.status(404).json({
+        success: false,
+        error: "Manifiesto selectors not available",
+      });
+    }
+    
+    requestLogger.info("Manifiesto selectors retrieved");
+    res.json({
+      success: true,
+      data: selectors.manifiesto,
+      lastUpdated: selectors.lastUpdated,
+    });
+  } catch (error) {
+    requestLogger.error({ error: error.message }, "Error retrieving manifiesto selectors");
+    res.status(500).json({
+      success: false,
+      error: "Error retrieving manifiesto selectors",
+    });
+  }
+});
+
+// GET /api/selectors/manifiesto/:field - Obtener campo específico de manifiesto
+app.get("/api/selectors/manifiesto/:field", (req, res) => {
+  const { field } = req.params;
+  const requestLogger = createLogger({ 
+    component: "SelectorsEndpoint",
+    field 
+  });
+  
+  try {
+    const selectors = loadSelectors();
+    
+    if (!selectors || !selectors.manifiesto) {
+      requestLogger.warn("Manifiesto selectors not available");
+      return res.status(404).json({
+        success: false,
+        error: "Manifiesto selectors not available",
+      });
+    }
+    
+    if (!selectors.manifiesto[field]) {
+      requestLogger.warn("Field not found");
+      return res.status(404).json({
+        success: false,
+        error: `Field '${field}' not found in manifiesto selectors`,
+      });
+    }
+    
+    requestLogger.info("Field options retrieved");
+    res.json({
+      success: true,
+      field: field,
+      options: selectors.manifiesto[field],
+      lastUpdated: selectors.lastUpdated,
+    });
+  } catch (error) {
+    requestLogger.error({ error: error.message }, "Error retrieving field");
+    res.status(500).json({
+      success: false,
+      error: "Error retrieving field",
+    });
+  }
+});
+
+// ========================================
+// CRON JOBS
+// ========================================
+
+// Cron job para actualizar selectores (cada día a las 2 AM)
+cron.schedule("0 2 * * *", async () => {
+  logger.info("Running selector update cron job");
+  
+  try {
+    const { updateSelectors } = require("./scripts/update-selectors");
+    const result = await updateSelectors();
+    
+    if (result.changes.length > 0) {
+      logger.warn(
+        { changes: result.changes },
+        "RNDC selector options have changed!"
+      );
+    } else {
+      logger.info("Selector update completed, no changes detected");
+    }
+  } catch (error) {
+    logger.error(
+      { error: error.message },
+      "Failed to update selectors in cron job"
+    );
+  }
+});
+
 // Cron job para limpiar archivos expirados (cada hora)
 cron.schedule("0 * * * *", () => {
   logger.info("Running file cleanup cron job");

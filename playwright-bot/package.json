@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "update-selectors": "node scripts/update-selectors.js"
   },
   "dependencies": {
     "playwright": "^1.40.0",

@@ -53,13 +53,10 @@ class RNDCBot {
       timeout: 30000 
     });
 
-    // Selectores múltiples para compatibilidad
-    const usernameSelector =
-      'input[id*="UserName"], input[name*="UserName"], input[type="text"][id*="Login"]';
-    const passwordSelector =
-      'input[id*="Password"], input[name*="Password"], input[type="password"][id*="Login"]';
-    const submitSelector =
-      'input[type="submit"][id*="Login"], input[type="submit"][name*="Login"], button[id*="Login"]';
+    // Selectores con IDs reales de DNN (solo el número de control varía)
+    const usernameSelector = 'input[id$="FormLogIn_edUsername"]';
+    const passwordSelector = 'input[id$="FormLogIn_edPassword"]';
+    const submitSelector = 'input[id$="FormLogIn_btIngresar"]';
 
     await page.fill(usernameSelector, this.username);
     await page.fill(passwordSelector, this.password);
