@@ -169,6 +169,23 @@ app.post(
         "Error creating manifiesto"
       );
 
+      // Si es un RNDCError, devolver información detallada
+      if (error.name === 'RNDCError') {
+        const path = require('path');
+        return res.status(400).json({
+          success: false,
+          error: error.message,
+          details: {
+            type: error.type,
+            pageErrors: error.pageErrors,
+            alerts: error.alerts,
+            screenshot: error.screenshot ? `/downloads/${path.basename(error.screenshot)}` : null,
+            timestamp: error.timestamp
+          }
+        });
+      }
+
+      // Error genérico
       res.status(500).json({
         success: false,
         error: error.message || "Error interno del servidor",

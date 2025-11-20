@@ -27,7 +27,7 @@ class ManifiestoWorker {
       const result = await this.bot.createManifiesto(
         task.data.remesa,
         task.data.manifiesto,
-        "/downloads/temp"
+        "/downloads"
       );
 
       // Guardar archivo
